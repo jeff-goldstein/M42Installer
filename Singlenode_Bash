@@ -1,0 +1,664 @@
+#!/bin/bash
+
+# This is a full single node installer for Momo 4.2.28 MTA-ONLY
+
+clear
+echo Installing Momo 4.2.28.1 - PoC Singlenode MTA Installer version
+echo
+echo  -Version 4-
+echo
+echo Please send the MAC below to licensing@messagesystems.com for a valid license
+ifconfig |grep -i HWaddr
+echo
+
+echo "Press ENTER/RETURN to continue"
+read R
+
+echo Launch a CentOS 6.4 instance 
+echo \(CentOS-6.4-x86_64-GA-EBS\) 
+echo Select instance type m3.medium, \(recommended\) click NEXT
+echo Select "Protect against accidental termination", click NEXT
+echo Update the volume size to 100Mb
+echo Click NEXT and add a tag so you can find your instance later
+echo Select a security group - I use "ALL TCP"
+echo click LAUNCH and select or create a key pair so you can log in for further configuration
+echo 
+echo Before going further, create a resolvable domain in DNS and ensure that is is resolvable.
+
+echo open a shell and log in 
+echo IE: ssh -i tmairs-oregon.pem ec2-user@ec2-54-190-177-235.us-west-2.compute.amazonaws.com
+
+echo move this installer to that server and execute it there
+
+# if running this manually, make sure you are sudo or root first
+sudo -s
+
+#alter the following vars then paste most of the rest...
+echo Send this MAC to licensing@messagesystems.com and ask for a key
+
+ifconfig |grep -i HWaddr
+echo
+
+echo "If you have already done all of the above, press ENTER/RETURN to continue"
+read R
+
+echo "Enter the friendly name of this server (IE: \"my dev server\")"
+read FNAME
+
+echo "Enter the name of the system operator (IE: \"Bob Jones\")"
+read USERNAME
+
+echo "Enter the email address of the above system operator (IE: \"bob@here.com\")"
+read EMAIL
+
+echo "What timezone is the server in? (EST,CST,MST,PST)"
+read TZ
+
+   if [ $TZ = "EST" ]; then
+      MYTZ="America/New_York"
+   fi
+   if [ $TZ = "CST" ]; then
+      MYTZ="America/Chicago"
+   fi
+   if [ $TZ = "MST" ]; then
+      MYTZ="America/Edmonton"
+   fi
+   if [ $TZ = "PST" ]; then
+      MYTZ="America/Los_Angeles"
+   fi
+   if [ $MYTZ = "" ]; then
+      MYTZ="America/Los_Angeles"
+   fi
+
+echo "PLEASE WAIT....."
+
+# send MAC to licensing team for appropriate license.
+
+ # Use $HOSTNAME instead
+ # MYHOST=`hostname -f`
+  MYFQDN=`hostname -f`
+  PUBLICIP=`curl -s checkip.dyndns.org|sed -e 's/.*Current IP Address: //' -e 's/<.*$//' `
+    PRIVATEIP=`hostname -i`
+  
+echo
+echo Using these settings:
+echo HOSTNAME = $HOSTNAME
+echo Public IP = $PUBLICIP
+echo Private IP = $PRIVATEIP
+echo Time Zone = $MYTZ
+echo
+
+export DEFAULT=/opt/msys/ecelerity/etc/conf/default/
+
+
+###########################################################
+# Now paste most of the rest... (stop at #EOP# Marker)
+###########################################################
+ 
+echo "Applying environment changes..."
+echo "..............................."
+
+echo 'export TZ=$MYTZ' >> /etc/profile
+export TZ=$MYTZ
+
+
+echo "
+*filter
+:INPUT ACCEPT [0:0]
+:FORWARD ACCEPT [0:0]
+:OUTPUT ACCEPT [82:15000]
+-A INPUT -m state --state RELATED,ESTABLISHED -j ACCEPT
+-A INPUT -p icmp -j ACCEPT
+-A INPUT -i lo -j ACCEPT
+-A INPUT -p tcp -m state --state NEW -m tcp --dport 22 -j ACCEPT
+-A INPUT -i eth0 -p tcp -m tcp --dport 25 -j ACCEPT
+-A INPUT -i eth0 -p tcp -m tcp --dport 80 -j ACCEPT
+-A INPUT -i eth0 -p tcp -m tcp --dport 81 -j ACCEPT
+-A INPUT -i eth0 -p tcp -m tcp --dport 443 -j ACCEPT
+-A INPUT -i eth0 -p tcp -m tcp --dport 587 -j ACCEPT
+-A INPUT -j REJECT --reject-with icmp-host-prohibited
+-A FORWARD -j REJECT --reject-with icmp-host-prohibited
+COMMIT
+" > /etc/sysconfig/iptables
+service iptables restart
+sed -i "s/HOSTNAME=\(.*\)/HOSTNAME=$HOSTNAME/" /etc/sysconfig/network
+echo 'export TZ=$MYTZ' >> /etc/profile
+export TZ=$MYTZ
+
+echo "
+$PRIVATEIP  $HOSTNAME
+$PUBLICIP $MYFQDN" >> /etc/hosts
+
+sudo echo "
+vm.max_map_count = 768000
+net.core.rmem_default = 32768
+net.core.wmem_default = 32768
+net.core.rmem_max = 262144
+net.core.wmem_max = 262144
+fs.file-max = 250000
+net.ipv4.ip_local_port_range = 5000 63000
+net.ipv4.tcp_tw_reuse = 1
+net.ipv4.tcp_tw_recycle = 1
+kernel.shmmax = 68719476736
+net.core.somaxconn = 1024
+vm.nr_hugepages = 10
+kernel.shmmni = 4096
+" >> /etc/sysctl.conf
+
+sudo /sbin/sysctl -p /etc/sysctl.conf
+
+sed -i 's/SELINUX=enforcing/SELINUX=disabled/' /etc/selinux/config  
+/usr/sbin/setenforce 0
+
+
+cd /var/tmp
+chkconfig ntpd on 
+/etc/init.d/ntpd start 
+service postfix stop
+/sbin/chkconfig postfix off
+
+service qpidd stop
+/sbin/chkconfig qpidd off
+
+echo 
+echo "Resizing the drive..." 
+echo "..............................."
+resize2fs /dev/xvde
+
+echo
+echo "Updating the swap file..." 
+echo "..............................."
+sudo dd if=/dev/zero of=/swapfile bs=1024 count=2048k
+sudo mkswap /swapfile
+sudo swapon /swapfile
+chown root:root /swapfile 
+chmod 0600 /swapfile
+echo "/swapfile               swap                    swap    defaults        0 0" >> /etc/fstab
+mount -a
+
+echo
+echo "Updating existing packages..."
+echo "..............................."
+yum clean headers
+yum clean packages
+yum clean metadata
+
+yum update -y
+
+echo
+echo "Adding required packages..."
+echo "..............................."
+
+yum -y install perl mcelog sysstat ntp gdb lsof.x86_64 wget yum-utils bind-utils telnet mlocate lynx unzip sudo
+yum -y install make gcc curl cpan mysql*
+
+
+echo "DOWNLOAD the 4.2.28.1 version of Momentum"
+echo " or SCP the bundle to /var/tmp" 
+echo "Then make sure you also execute script V4m4.2.28MTAC64_Installer2.sh"
+echo
+
+
+echo "Press ENTER/RETURN to continue to LYNX or ^C to exit now."
+read R
+
+lynx https://support.messagesystems.com/docs
+
+
+cd /var/tmp
+MOMOVER=`find -name 'momentum-bundle*.tar.gz'`
+   if [ $MOMOVER = "" ]; then
+      MOMOVER=`find -name 'momentum-mta-bundle*.tar.gz'`
+   fi
+   if [ $MOMOVER = "" ]; then
+      echo "cannot continue - no install bundle found"
+      exit
+   fi
+MOMOREL='momentum-4.'`echo $MOMOVER | cut -d'.' -f 3-5`
+   if [ $MOMOREL = "" ]; then
+      MOMOREL='momentum-mta-4.'`echo $MOMOVER | cut -d'.' -f 3-5`
+   fi
+   if [ $MOMOREL = "" ]; then
+      echo "cannot continue - no install bundle found"
+      exit
+   fi
+
+
+echo 
+echo Unpacking version $MOMOREL . Please wait....
+echo ...
+tar -zxf $MOMOVER
+cd $MOMOREL/
+
+echo "Installing from $MOMOREL.  press ^C to exit or ENTER to continue"
+read R
+
+./setrepodir
+pwd >/var/tmp/inst.dir
+
+yum install -y --config momentum.repo --enablerepo momentum \
+msys-ecelerity-config-server \
+msys-role-db \
+msys-role-mta \
+msys-role-mobility \
+msys-ecelerity-mobility-db 
+
+/opt/msys/ecelerity/bin/ec_lic -f
+
+mkdir -p /opt/msys/etc
+< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c8   > /opt/msys/etc/.svcpasswd
+export SVCPASSWD=`cat /opt/msys/etc/.svcpasswd`
+export ADMINPASS=admin
+
+echo $HOSTNAME > /opt/msys/etc/.dbhost
+
+
+service msyspg start
+sleep 40
+cd /opt/msys/ecelerity/etc
+../bin/init_schema --password $SVCPASSWD --admin-password $ADMINPASS
+
+sed -i -e "s/UseCanonicalName DNS/ServerName $HOSTNAME/" ecconfigd.conf
+sed -i -e "s/Include \"/#Include \"/" ecconfigd.conf
+
+echo
+echo COPY the password below so you can paste it in the next prompt...
+echo $SVCPASSWD
+echo "Copy the password above to your clip board then paste it for the next prompt" 
+echo
+
+/opt/msys/ecelerity/bin/create_ssl_cert ecconfigd $HOSTNAME /var/ecconfigd/apache
+/opt/msys/3rdParty/apache/sbin/htdigest -c /var/ecconfigd/repo/svn-auth.htdigest  "ecconfigd repo" ecuser
+
+echo "Copy the password above to your clip board then paste it for the next prompt" 
+echo "Deal with the SERVICE password above first... Press ^C to exit or ENTER to continue"
+read R
+
+echo
+echo use "admin" in the next prompt...
+echo
+
+/opt/msys/3rdParty/apache/sbin/htdigest /var/ecconfigd/repo/svn-auth.htdigest "ecconfigd repo" admin 
+
+echo "Deal with the ADMIN password above first... Press ^C to exit or ENTER to continue"
+read R
+
+service ecconfigd start
+
+cd /opt/msys/ecelerity/etc
+chmod g+ws .
+sudo -u ecuser /opt/msys/ecelerity/bin/eccfg bootstrap --singlenode  --username admin --password $ADMINPASS
+
+cd /opt/msys/ecelerity/etc
+cat << EOT > conf/default/ecdb.conf
+Datasource "ecdb" {
+  uri = ( "pgsql:host=$HOSTNAME;dbname=ecelerity;user=ecuser;password=$SVCPASSWD" )
+}
+EOT
+
+sed -i -e 's|/opt/msys/etc/installer/eccmgr.d/||' conf/default/eccluster.conf
+sed -i -e 's|/opt/msys/etc/installer/ecelerity.d/|ecdb.conf|' conf/default/ecelerity.conf
+# THESE NEED TO BE FIXED
+#sed -i -e 's|event_hydrant "event_collector" {\r\n}|#event_hydrant "event_collector"{\r\n#}|' conf/default/ecelerity.conf
+#sed -i -e 's|event_hose "momentum_metrics"{\n}|#event_hose "momentum_metrics"{\n#}|' conf/default/ecelerity.conf
+
+sudo -u ecuser ../bin/eccfg commit -m 'Add ecdb config' --username admin \
+   --add-all --password $ADMINPASS
+
+service ecelerity start
+service msys-riak start
+
+
+# To fix the ecconfig stack trace problem
+sed -i 's/use strict;/$ENV{GIMLI_WATCHDOG_INTERVAL} = 300;\nuse strict;/' /etc/init.d/ecconfigd
+service ecconfigd restart
+
+###########################################################
+#These are custom for the SETEAM install
+###########################################################
+
+# To label the server with a descriptive and helpful MOTD
+# Edit as needed for this install
+
+echo "
+
+
+
+
+
+
+
+
+##############################################
+
+Welcome to the $FNAME server 
+[ https://$MYFQDN ]
+
+Hosting Momentum $MOMOREL MTA ONLY
+
+ - for any questions, please contact
+$USERNAME <$EMAIL>
+
+##############################################
+" > /etc/motd
+
+echo "
+echo \"version\" |/opt/msys/ecelerity/bin/ec_console
+echo " > /etc/motd.sh
+
+echo "sh /etc/motd.sh" >> /etc/profile
+
+
+
+#######################################################################################
+#
+# WARNING 
+#
+# This following section is to give users server access
+# You may want to edit this section before running the script
+#
+#######################################################################################
+# to give seteam users sudo access to the server
+sed -i 's/PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config   
+echo "seteam        ALL=(ALL)       NOPASSWD: ALL" >> /etc/sudoers
+service sshd restart
+
+useradd seteam
+passwd seteam
+#######################################################################################
+#######################################################################################
+
+
+#######################################################################################
+#
+# WARNING 
+#
+# This following section generates and alters system configuration
+# You may want to edit this section before running the script
+#
+#######################################################################################
+
+
+echo "Now customizing configs...  press ^C to exit or ENTER to continue"
+read R
+
+mkdir $DEFAULT/lua
+mkdir $DEFAULT/conf.d
+
+
+#################################
+# FBL Config
+#################################
+echo "
+Enable_FBL_Header_Insertion = enabled
+
+fbl {
+  Auto_Log = true # default is \"false\"
+  Log_Path = \"jlog:///var/log/ecelerity/fbllog.jlog=>master\"
+  Addresses = ( \"^.*@fbl.$MYFQDN\" ) # default is unset
+  Header_Name = \"X-MSFBL\" # this is the default
+#  User_String = \"%{vctx_mess:my_context_variable}\" # default is unset
+  Message_Disposition = \"pass\" # default is blackhole, also allowed to set to \"pass\"
+#  Condition = \"can_relay\" # default is unset, should be name of a vctx entry
+}
+" > $DEFAULT/conf.d/fbl.conf
+
+
+#################################
+# DKIM Config
+#################################
+echo "
+opendkim_sign = \"enabled\"
+
+opendkim \"opendkim1\" {
+  header_canon = \"relaxed\"
+  body_canon = \"relaxed\"
+  headerlist = (\"from\", \"to\", \"message-id\", \"date\", \"subject\", \"Content-Type\")
+  digest = \"rsa-sha256\"
+  key = \"/opt/msys/ecelerity/etc/conf/default/dk/%{d}/%{s}.key\"
+  dkim_domain \"$MYFQDN\" {
+    selector = \"s1024\"
+  }
+
+}
+" > $DEFAULT/conf.d/dkim.conf
+
+
+
+#################################
+# ADAPTIVE Config
+#################################
+echo "
+adaptive_enabled = true
+adaptive_notification_interval = 5
+adaptive_adjustment_interval = 10
+
+adaptive  {
+  suspend_sweep_interval = 5
+  operational_log_level = \"debug\"
+  jlog_file = \"jlog:///var/log/ecelerity/adaptive.rt=>ad_stats\"
+  enable_jlog = true
+}
+
+alerting {}
+
+scriptlet \"scriptlet\" {
+  # Add the Lua adaptive script
+  script \"adaptive\" {
+    source = \"msys.adaptive\"
+  }
+}
+
+inbound_audit {
+  monitors = (\"300,6\")
+}" > $DEFAULT/conf.d/adaptive.conf
+
+
+
+#################################
+# BINDING Config
+#################################
+echo "
+binding_group general {
+
+  binding \"generic\" {
+  }
+  binding \"marketing\" {
+  }
+  binding \"news\" {
+  }
+  binding \"trans\" {
+  }
+  binding \"msys\" {
+  }
+}
+" > $DEFAULT/conf.d/bindings.conf
+
+
+#################################
+# General ecelerity config
+#################################
+sed -i 's/Bounce_Domains /#Bounce_Domains /' $DEFAULT/ecelerity.conf
+sed -i 's/Bounce_Behavior /#Bounce_Behavior /' $DEFAULT/ecelerity.conf
+sed -i 's/Generate_bounces /#Generate_bounces /' $DEFAULT/ecelerity.conf
+echo "include \"conf.d\"" >> $DEFAULT/ecelerity.conf
+
+echo "
+#
+# Additional ecelerity mods to add.  Remember to INCLUDE this file in ecelerity.conf
+#
+
+Bounce_Domains = (\"*.$MYFQDN\")
+Bounce_Behavior = blackhole
+Generate_bounces = false
+
+scriptlet \"scriptlet\" {
+  script \"policy\" {
+    source = \"$DEFAULT/lua/policy.lua\"
+  }
+}
+
+eventloop \"pool\" {
+concurrency = 4
+}
+
+delivery_pool = \"pool\"
+maintainer_pool = \"pool\"
+
+
+#smtpapi{}
+
+ESMTP_Listener{
+  Listen \":587\" {
+    Enable = true
+    TLS_Verify_Mode = \"require\"
+    TLS_Certificate = \"/etc/pki/tls/certs/trymsys.net.crt\"
+    TLS_Key = \"/etc/pki/tls/certs/trymsys.net.key\"
+    TLS_Client_CA = \"/etc/pki/tls/certs/trymsys.net.crt\"
+    TLS_Ciphers = \"DEFAULT\"
+    AuthLoginParameters = [
+       uri = \"file:///opt/msys/ecelerity/etc/unsafe_passwd\"
+    ]
+    SMTP_Extensions = ( \"ENHANCEDSTATUSCODES\" \"STARTTLS\" \"AUTH LOGIN\" )
+#    tracking_domain = \"$MYFQDN:81\"
+  }
+}
+
+#tls_macros {}
+
+
+" > $DEFAULT/conf.d/ecelerity_mods.conf
+
+
+
+#################################
+# Mobile Config
+#################################
+echo "
+smpp_logger \"smpp_logger\"
+{
+  logfile = \"/var/log/ecelerity/smpplog.ec\"
+  logmode = 0644
+  log_reception_format = \"%t@R@%m@%s@%d@%q@%bg@%b@%ip@%l\"
+  log_permfail_format = \"%t@P@%m@%s@%d@%q@%bg@%b@%ip@%e\"
+  log_delivery_format = \"%t@D@%m@%s@%d@%q@%bg@%b@%ip@%l@%rm\"
+  log_tempfail = false
+  log_status = false
+}
+
+#Datasource \"ram\" {
+#  uri = ( \"pgsql:host=localhost;dbname=ecelerity;user=ecuser;password=123456\")
+#  no_cache = \"true\"
+#}
+
+smpp {
+   debug_level=debug
+}
+
+
+domain mblox.sms.agg {
+  SMPP_SMSC_Server = \"smpp.mt.us.mblox.com\"
+  SMPP_SMSC_Port = \"3210\"
+  SMPP_SMSC_System_ID = \"<redacted>\"
+  SMPP_SMSC_Password = \"<redacted>\"
+  SMPP_ESME_Address = \"<redacted>\"
+  SMPP_Default_Email_Address = \"<redacted>\"
+  SMPP_Registered_Delivery = (SMSC_Delivery)
+  SMPP_Max_Sms_Subject_Size = \"0\"
+  SMPP_ESME_Service_Type = \"32538\"
+  SMPP_SMS_Data_Coding = \"ascii\"
+  SMPP_Inactivity_Timer = 600
+  SMPP_Enquire_Link_Timer = 90
+  SMPP_Response_Timer = 60
+}
+" > $DEFAULT/conf.d/mobile.conf
+
+
+#################################
+# Lua Policy
+#################################
+echo "
+require(\"msys.core\");
+require(\"msys.db\");
+require(\"msys.pcre\");
+require(\"msys.dumper\");
+require(\"msys.extended.message\");
+require(\"msys.extended.message_routing\");
+require(\"msys.extended.ac\");
+
+local mod = {};
+
+--[[ Modify these as necessesary for your demo ]]--
+local sinkdomain = \"54.244.3.35\"
+local safedomains = { \"mblox.sms.agg\", \"validator.messagesystems.com\", \"messagesystems.com\", \"sparkpost.com\" }
+
+--[[ each rcpt_to function ]]--
+function mod:validate_data_spool_each_rcpt (msg, accept, vctx)
+--  print (\"Using data_spool_each_rcpt\");
+  return msys.core.VALIDATE_CONT;
+end 
+
+
+--[[ each MSG_GEN rcpt_to function ]]--
+function mod:msg_gen_data_spool(msg)
+--  print (\"Using msg_gen_data_spool\");
+  return msys.core.VALIDATE_CONT;
+end
+
+
+--[[ Set Binding function ]]--
+function mod:validate_set_binding(msg)
+  local domain_str = msys.core.string_new();
+  local localpart_str = msys.core.string_new();
+  msg:get_envelope2(msys.core.EC_MSG_ENV_TO, localpart_str, domain_str);
+  local mydomain = tostring(domain_str);
+  local mylocalpart = tostring(localpart_str);
+  local validdomain = \"false\"
+  local bindingname = msg:header(\"X-Binding\")
+
+  if bindingname[1] then 
+    msg:context_set(msys.core.VCTX_MESS, \"mo_binding\", bindingname[1])
+  end
+
+
+-- Test to see if the TO domain is in the safe list
+  for i,v in ipairs(safedomains) do
+    if v == mydomain then
+    --  print (\"Routing to a valid domain: \" .. mydomain);
+      validdomain = \"true\"
+      break
+   end
+  end
+
+  if validdomain == \"false\" then
+
+  --  print (\"Sending this to sink: \" .. sinkdomain .. \" / \" .. mydomain);
+    msg:routing_domain(sinkdomain);
+  end
+    if ( ( bindingname[1] ~= \"\" ) and (bindingname[1] ~= nil ) )  then
+      local err = msg:binding(bindingname[1]);
+    else 
+      local err = msg:binding(\"generic\");
+    end
+
+
+-- print(msg:context_get(msys.core.ECMESS_CTX_MESS, 'mo_campaign_id'));
+
+  return msys.core.VALIDATE_CONT;
+end;
+
+msys.registerModule(\"policy\", mod);
+" > $DEFAULT/lua/policy.lua
+
+
+#######################################
+# Commit and restart
+#######################################
+chown ecuser.ecuser $DEFAULT/* -R
+service ecelerity restart
+
+echo 
+echo 
+echo "Installation complete!"
+echo 
+echo 

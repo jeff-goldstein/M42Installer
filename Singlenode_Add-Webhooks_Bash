@@ -1,0 +1,271 @@
+#!/bin/bash 
+
+# This is part 4 of a single node installer for Momo 4.2.28 using MTA+Webhooks+API+Gen
+
+echo "Unpacking installer bundle"
+
+cd /var/tmp
+MOMOVER=`find -name 'momentum-bundle*.tar.gz'`
+MOMOREL='momentum-4.'`echo $MOMOVER | cut -d'.' -f 3-5`
+#echo $MOMOREL
+   if [ $MOMOREL = "" ]; then
+      echo "cannot continue - no install bundle found"
+      exit
+   fi
+
+
+tar -zxf $MOMOVER
+cd $MOMOREL/
+
+./setrepodir
+pwd >/var/tmp/inst.dir
+
+echo "Installing packages ..."
+sleep 1
+
+yum install -y --config momentum.repo --enablerepo momentum \
+msys-rabbitmq \
+msys-app-webhooks-api \
+msys-app-webhooks-cql \
+msys-app-webhooks-etl \
+msys-role-cassandra
+
+export CLUSTER="CAS-`< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c8`"
+echo $CLUSTER >/var/tmp/cass.cluster
+
+cp /opt/msys/3rdParty/cassandra/conf/cassandra.yaml.dist /opt/msys/3rdParty/cassandra/conf/cassandra.yaml
+
+export IPADDRESS=`host $HOSTNAME | cut -d' ' -f4`
+export CASSNODES=$HOSTNAME
+echo $IPADDRESS
+echo $CASSNODES
+
+/opt/msys/3rdParty/cassandra/bin/update_cass_yaml \
+  --seeds="$CASSNODES" --listen $IPADDRESS --cluster-name=$CLUSTER \
+  --rpc 0.0.0.0 --rpc_max_threads=200 \
+  --thrift_framed_transport_size_in_mb=25 --force
+
+echo
+echo "Restarting Cassandra"
+echo
+
+service msys-cassandra start
+sleep 30
+service msys-cassandra status
+
+export CASS_MULTI_OR_SINGLE=singlenode
+export CASS_CLUSTER_OR_SINGLE=singlenode
+export PATH=/opt/msys/3rdParty/bin:$PATH
+export IPADDRESS=$HOSTNAME
+
+cd /opt/msys/app/webhooks-api/cql
+
+cqlsh $IPADDRESS -f load_${CASS_CLUSTER_OR_SINGLE}_keyspace.cql   2>&1 | tee -a cassandra_schema.log
+cqlsh $IPADDRESS -k webhooks -f upgrades/V2015.08.12_12.00.00__add_auth_columns.cql 2>&1 | tee -a cassandra_schema.log
+
+echo
+echo "Installing RabbitMQ"
+echo
+
+#RABBITMQ
+sed -i -e "s/,{\"::1\", 5672}//" /opt/msys/3rdParty/etc/rabbitmq/rabbitmq.config 
+
+service qpidd stop
+/sbin/chconfig qpidd off
+
+export THIRDPARTY=/opt/msys/3rdParty
+export RABBITMQCTL="$THIRDPARTY/sbin/rabbitmqctl"
+export RABBITMQADMIN="$THIRDPARTY/sbin/rabbitmqadmin"
+service msys-rabbitmq start
+$RABBITMQADMIN declare exchange name=momentum_metrics type=topic
+$RABBITMQCTL add_user rabbitmq "p1-Vk01Xy"
+$RABBITMQCTL set_user_tags rabbitmq administrator
+$RABBITMQCTL set_permissions -p '/' rabbitmq '.*' '.*' '.*'
+$RABBITMQCTL delete_user guest
+
+
+# Configure the Users API
+echo
+echo "configuring the User API"
+echo
+
+cd /var/tmp/momentum-4.2.28.58446/
+./setrepodir
+yum install -y --config momentum.repo --enablerepo momentum \
+msys-app-webui \
+msys-app-users-api \
+msys-app-users-db
+
+cd /opt/msys/app/users-api/cql
+
+cqlsh $IPADDRESS -f load_${CASS_CLUSTER_OR_SINGLE}_keyspace.cql   2>&1 | tee -a cassandra_schema.log
+cqlsh $IPADDRESS -k authentication -f upgrades/V2015.01.20_00.00.00__create_customer_metadata.cql 2>&1 | tee -a cassandra_schema.log
+cqlsh $IPADDRESS -k authentication -f upgrades/V2015.01.21_00.00.00__add_terms_of_use_column.cql 2>&1 | tee -a cassandra_schema.log
+cqlsh $IPADDRESS -k authentication -f upgrades/V2015.05.21_00.00.00__add_email_verified_column.cql 2>&1 | tee -a cassandra_schema.log
+
+sed -i 's/, sending_disabled//' /opt/msys/app/users-api/cql/upgrades/V2015.01.20_02.00.00__populate_customer_metadata.cql
+
+
+cqlsh $IPADDRESS -k authentication -f upgrades/V2014.06.11_00.00.00__add_oauth_clients.cql 2>&1 >> cassandra_schema.log
+cqlsh $IPADDRESS -k authentication -f upgrades/V2014.12.21_00.00.00__create_user_emails.cql 2>&1 >> cassandra_schema.log
+cqlsh $IPADDRESS -k authentication -f upgrades/V2014.12.22_00.00.00__populate_email_users.cql 2>&1 >> cassandra_schema.log
+cqlsh $IPADDRESS -k authentication -f upgrades/V2015.01.20_01.00.00__extract_customers.cql 2>&1 >> cassandra_schema.log
+cqlsh $IPADDRESS -k authentication -f upgrades/V2015.01.20_02.00.00__populate_customer_metadata.cql 2>&1 >> cassandra_schema.log
+cqlsh $IPADDRESS -k authentication -f upgrades/V2015.04.09_00.00.00__create_unsuccessful_logins.cql 2>&1 >> cassandra_schema.log
+cqlsh $IPADDRESS -k authentication -f upgrades/V2015.04.10_00.00.00__two_factor.cql 2>&1 >> cassandra_schema.log
+cqlsh $IPADDRESS -k authentication -f upgrades/V2015.04.28_00.00.00__add_is_sso_column.cql 2>&1 >> cassandra_schema.log
+cqlsh $IPADDRESS -k authentication -f upgrades/V2015.04.28_00.00.00__add_tou_last_updated.cql 2>&1 >> cassandra_schema.log
+cqlsh $IPADDRESS -k authentication -f upgrades/V2015.05.21_00.00.00__create_email_verification_tokens.cql 2>&1 >> cassandra_schema.log
+cqlsh $IPADDRESS -k authentication -f upgrades/V2015.06.16_00.00.00__add_saml_column.cql 2>&1 >> cassandra_schema.log
+cqlsh $IPADDRESS -k authentication -f upgrades/V2015.06.17_00.00.00__add_valid_ip_column.cql 2>&1 >> cassandra_schema.log
+cqlsh $IPADDRESS -k authentication -f upgrades/V2015.06.22_00.00.00__add_last_login_column.cql 2>&1 >> cassandra_schema.log
+
+echo '
+{
+  "cassandra": {
+    "hosts": [
+          "'$HOSTNAME'"
+     ]
+  }
+}
+' > /opt/msys/app/users-api/config/production.json
+
+service msys-app-users-api start
+sleep 1
+
+export LINE1='"username" : "admin", "password": "admin", "access" : "admin"'
+export LINE2='"firstName" : "Sys", "lastName" : "admin", "email" : "admin@Tdomain.com"'
+curl -XPOST -H "X-MSYS-CUSTOMER: 1" -H "Content-Type: application/json" -d \
+    "{ $LINE1, $LINE2 }" http://localhost:2085/api/v1/users
+    
+USER="admin"
+PSWD="admin"
+JSON_LP='"label" : "API Key (Token) for admin", "password" : "'$PSWD'"'
+JSON_GB='"grants" : ['
+JSON_G1='"recipient_lists/manage", "smtp/inject"'
+JSON_G2='"templates/modify", "templates/preview", "templates/view"'
+JSON_G3='"transmissions/modify", "transmissions/view"'
+JSON_G4='"webhooks/modify", "webhooks/view"'
+JSON_GE=']'
+curl -XPOST -H "X-MSYS-CUSTOMER: 1" -H "Content-Type: application/json" \
+    -d "{ $JSON_LP, $JSON_GB $JSON_G1, $JSON_G2, $JSON_G3, $JSON_G4 $JSON_GE }" \
+    http://localhost:2085/api/v1/users/$USER/tokens
+
+
+echo 
+echo "This is your API key"
+echo 
+
+mkdir -p /opt/msys/app/webhooks-etl/cron/config/
+echo '
+{
+  "cassandra": {
+    "contactPoints": [
+      "'$HOSTNAME'"
+      ]
+  }
+}
+'  > /opt/msys/app/webhooks-etl/cron/config/production.json
+
+mkdir -p /opt/msys/app/webhooks-api/cron/config/
+echo '
+{
+  "cassandra": {
+    "contactPoints": [
+      "'$HOSTNAME'"
+    ]
+  }
+}
+' > /opt/msys/app/webhooks-etl/cron/config/production.json
+
+
+
+echo '
+{
+  "application": {
+    "analyticsSupport": {
+      "enabled": false
+    }
+  }
+ 
+  "cql": {
+    "contactPoints": [
+          "'$HOSTNAME'"
+     ]
+  }
+}
+'  > /opt/msys/app/webhooks-api/config/production.json
+
+
+echo
+echo "restarting stuff..."
+echo
+
+service msys-app-webhooks-etl start
+service msys-app-webhooks-api start
+
+#enable hydrant and hose
+sed -i 's/# event_hydrant/event_hydrant/' /opt/msys/ecelerity/etc/conf/default/ecelerity.conf
+sed -i 's/# event_hose/event_hose/' /opt/msys/ecelerity/etc/conf/default/ecelerity.conf
+
+/opt/msys/ecelerity/bin/eccfg commit --username admin --password admin \
+    --add-all --message "Including cluster config and msg_gen config"
+ 
+service ecelerity restart
+sleep 1
+
+cd /var/tmp/momentum-4.2.28.58446/
+yum install -y --config momentum.repo --enablerepo momentum msys-nginx
+
+cat <<EOF >/var/tmp/sedfqdns
+s/yournode01.yourdomain.tld/$HOSTNAME/
+EOF
+
+cat <<EOF >/var/tmp/sedips
+s/YOURIP01/127.0.0.1/
+EOF
+
+cp -i /opt/msys/ecelerity/etc/sample-configs/nginx/api_users_upstream.conf /opt/msys/3rdParty/nginx/conf.d/
+cp -i /opt/msys/ecelerity/etc/sample-configs/nginx/momo_upstream.conf /opt/msys/3rdParty/nginx/conf.d/
+cp -i /opt/msys/ecelerity/etc/sample-configs/nginx/click_proxy_upstream.conf /opt/msys/3rdParty/nginx/conf.d/
+cp -i /opt/msys/ecelerity/etc/sample-configs/nginx/webui_upstream.conf /opt/msys/3rdParty/nginx/conf.d/
+
+cd /opt/msys/3rdParty/nginx/conf.d/
+
+
+cat /opt/msys/ecelerity/etc/sample-configs/nginx/click_proxy_upstream.conf | \
+  sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
+  sed "s/#UNCOMMENT-AS-NEEDED//" | sed 's/:81/:2081/' >click_proxy_upstream.conf
+cat /opt/msys/ecelerity/etc/sample-configs/nginx/momo_upstream.conf | \
+  sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
+  sed "s/#UNCOMMENT-AS-NEEDED//" >momo_upstream.conf
+cat /opt/msys/ecelerity/etc/sample-configs/nginx/webui_upstream.conf | \
+  sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
+  sed "s/#UNCOMMENT-AS-NEEDED//" >webui_upstream.conf
+cat /opt/msys/ecelerity/etc/sample-configs/nginx/api_metrics_upstream.conf | \
+  sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
+  sed "s/#UNCOMMENT-AS-NEEDED//" >api_metrics_upstream.conf
+cat /opt/msys/ecelerity/etc/sample-configs/nginx/api_webhooks_upstream.conf | \
+  sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
+  sed "s/#UNCOMMENT-AS-NEEDED//" >api_webhooks_upstream.conf
+cat /opt/msys/ecelerity/etc/sample-configs/nginx/api_users_upstream.conf | \
+  sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
+  sed "s/#UNCOMMENT-AS-NEEDED//" >api_users_upstream.conf
+cat /opt/msys/ecelerity/etc/sample-configs/nginx/api_adaptive_delivery_upstream.conf | \
+  sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
+  sed "s/#UNCOMMENT-AS-NEEDED//" >api_adaptive_delivery_upstream.conf
+cp /dev/null api_webhooks.conf
+
+
+
+service msys-nginx configtest
+service msys-nginx start
+echo "0 17 * * * /opt/msys/3rdParty/bin/node /opt/msys/app/webhooks-api/cron/purge_null_webhook_configs.js --NODE_CONFIG_DIR=/opt/msys/app/webhooks-api/cron/config --NODE_ENV=production >> /var/log/msys-nodejs/purge_null_webhook_configs_cron.log 2>&1
+" > /etc/cron.d/msys-webhook
+
+echo
+echo "DONE !"
+echo
+
+
+

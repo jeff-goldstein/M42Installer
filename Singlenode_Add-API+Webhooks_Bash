@@ -1,6 +1,11 @@
 #!/bin/bash 
 
+
 echo "Unpacking installer bundle"
+
+MYFQDN=`hostname -f`
+PUBLICIP=`curl -s checkip.dyndns.org|sed -e 's/.*Current IP Address: //' -e 's/<.*$//' `
+PRIVATEIP=`hostname -i`
 
 cd /var/tmp
 MOMOVER=`find -name 'momentum-bundle*.tar.gz'`
@@ -18,6 +23,14 @@ cd $MOMOREL/
 ./setrepodir
 pwd >/var/tmp/inst.dir
 
+cat <<EOF >/var/tmp/sedfqdns
+s/yournode01.yourdomain.tld/$HOSTNAME/
+EOF
+
+cat <<EOF >/var/tmp/sedips
+s/YOURIP01/127.0.0.1/
+EOF
+
 echo "Installing packages ..."
 sleep 1
 
@@ -26,7 +39,8 @@ msys-rabbitmq \
 msys-app-webhooks-api \
 msys-app-webhooks-cql \
 msys-app-webhooks-etl \
-msys-role-cassandra
+msys-role-cassandra \
+msys-nginx
 
 export CLUSTER="CAS-`< /dev/urandom tr -dc _A-Z-a-z-0-9 | head -c8`"
 echo $CLUSTER >/var/tmp/cass.cluster
@@ -68,14 +82,16 @@ echo
 #RABBITMQ
 sed -i -e "s/,{\"::1\", 5672}//" /opt/msys/3rdParty/etc/rabbitmq/rabbitmq.config 
 
-service qpidd stop
-/sbin/chconfig qpidd off
 
 export THIRDPARTY=/opt/msys/3rdParty
 export RABBITMQCTL="$THIRDPARTY/sbin/rabbitmqctl"
 export RABBITMQADMIN="$THIRDPARTY/sbin/rabbitmqadmin"
 service msys-rabbitmq start
 $RABBITMQADMIN declare exchange name=momentum_metrics type=topic
+$RABBITMQADMIN declare queue name=msg_events
+$RABBITMQADMIN declare binding source=momentum_metrics \
+  destination=msg_events \
+  routing_key=msys.*
 $RABBITMQCTL add_user rabbitmq "p1-Vk01Xy"
 $RABBITMQCTL set_user_tags rabbitmq administrator
 $RABBITMQCTL set_permissions -p '/' rabbitmq '.*' '.*' '.*'
@@ -102,8 +118,6 @@ cqlsh $IPADDRESS -k authentication -f upgrades/V2015.01.21_00.00.00__add_terms_o
 cqlsh $IPADDRESS -k authentication -f upgrades/V2015.05.21_00.00.00__add_email_verified_column.cql 2>&1 | tee -a cassandra_schema.log
 
 sed -i 's/, sending_disabled//' /opt/msys/app/users-api/cql/upgrades/V2015.01.20_02.00.00__populate_customer_metadata.cql
-
-
 cqlsh $IPADDRESS -k authentication -f upgrades/V2014.06.11_00.00.00__add_oauth_clients.cql 2>&1 >> cassandra_schema.log
 cqlsh $IPADDRESS -k authentication -f upgrades/V2014.12.21_00.00.00__create_user_emails.cql 2>&1 >> cassandra_schema.log
 cqlsh $IPADDRESS -k authentication -f upgrades/V2014.12.22_00.00.00__populate_email_users.cql 2>&1 >> cassandra_schema.log
@@ -140,18 +154,16 @@ USER="admin"
 PSWD="admin"
 JSON_LP='"label" : "API Key (Token) for admin", "password" : "'$PSWD'"'
 JSON_GB='"grants" : ['
-JSON_G1='"recipient_lists/manage", "smtp/inject"'
-JSON_G2='"templates/modify", "templates/preview", "templates/view"'
 JSON_G3='"transmissions/modify", "transmissions/view"'
 JSON_G4='"webhooks/modify", "webhooks/view"'
 JSON_GE=']'
 curl -XPOST -H "X-MSYS-CUSTOMER: 1" -H "Content-Type: application/json" \
-    -d "{ $JSON_LP, $JSON_GB $JSON_G1, $JSON_G2, $JSON_G3, $JSON_G4 $JSON_GE }" \
+    -d "{ $JSON_LP, $JSON_GB $JSON_G3, $JSON_G4 $JSON_GE }" \
     http://localhost:2085/api/v1/users/$USER/tokens
 
 
 echo 
-echo "This is your API key"
+echo " ^^ This is your API key ^^ "
 echo 
 
 mkdir -p /opt/msys/app/webhooks-etl/cron/config/
@@ -212,16 +224,7 @@ sed -i 's/# event_hose/event_hose/' /opt/msys/ecelerity/etc/conf/default/eceleri
 service ecelerity restart
 sleep 1
 
-cd /var/tmp/momentum-4.2.28.58446/
-yum install -y --config momentum.repo --enablerepo momentum msys-nginx
 
-cat <<EOF >/var/tmp/sedfqdns
-s/yournode01.yourdomain.tld/$HOSTNAME/
-EOF
-
-cat <<EOF >/var/tmp/sedips
-s/YOURIP01/127.0.0.1/
-EOF
 
 cd /opt/msys/3rdParty/nginx/conf.d/
 
@@ -246,14 +249,35 @@ cat /opt/msys/ecelerity/etc/sample-configs/nginx/api_users_upstream.conf | \
 cat /opt/msys/ecelerity/etc/sample-configs/nginx/api_adaptive_delivery_upstream.conf | \
   sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
   sed "s/#UNCOMMENT-AS-NEEDED//" >api_adaptive_delivery_upstream.conf
-cp /dev/null api_webhooks.conf
-
-
+cp -f /dev/null api_webhooks.conf
 
 service msys-nginx configtest
 service msys-nginx start
 echo "0 17 * * * /opt/msys/3rdParty/bin/node /opt/msys/app/webhooks-api/cron/purge_null_webhook_configs.js --NODE_CONFIG_DIR=/opt/msys/app/webhooks-api/cron/config --NODE_ENV=production >> /var/log/msys-nodejs/purge_null_webhook_configs_cron.log 2>&1
 " > /etc/cron.d/msys-webhook
+
+# Adding API-GEN
+
+echo
+echo "Installing Generation API"
+echo
+
+yum install -y --config momentum.repo --enablerepo momentum msys-ecelerity-engagement-proxy 
+
+cat sample-configs/default/msg_gen.conf | sed "s/your[cm]node/yournode/" | \
+   sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT.*yournode" | \
+   sed "s/#UNCOMMENT-AS-NEEDED //" | grep -v "cluster_cfg *= *true" | \
+   grep -v "node.*mta_id" | sed "s/host=.*port=/host=127.0.0.1;port=/" >conf/default/msg_gen.conf
+   
+sed -i "s/__EXTERNAL_DNS_HOSTNAME__/$MYFQDN/" conf/default/msg_gen.conf
+
+sed -i -e 's/# include "msg_gen.conf"/include "msg_gen.conf"/'  conf/default/ecelerity.conf
+
+/opt/msys/ecelerity/bin/eccfg commit --username admin --password admin \
+    --add-all --message "Including cluster config and msg_gen config"
+ 
+service ecelerity restart
+
 
 echo
 echo "DONE !"

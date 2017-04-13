@@ -1,0 +1,69 @@
+#!/bin/bash
+
+########################################################
+#  NOTE: Certs and keys here have been mangled
+#  Replace with your own valid certs and keys
+#  before running this script.
+########################################################
+
+sed -i 's/server {/server { \
+  listen 443 ssl; \
+  ssl_certificate     \/etc\/pki\/tls\/certs\/trymsys.net.crt; \
+  ssl_certificate_key \/etc\/pki\/tls\/certs\/trymsys.net.key; \
+  ssl_protocols  TLSv1 TLSv1.1 TLSv1.2; \
+  ssl_ciphers "AES128+EECDH:AES128+EDH"; \
+  ssl_prefer_server_ciphers on; \
+  ssl_session_cache shared:SSL:10m; \
+  add_header Strict-Transport-Security "max-age=63072000; includeSubDomains"; \
+  add_header X-Frame-Options DENY; \
+  add_header X-Content-Type-Options nosniff; \
+/' /opt/msys/3rdParty/nginx/conf.d/web_proxy.conf
+
+
+echo "
+-----BEGIN CERTIFICATE-----
+MIIEjzCCA3egAwIBAgIKZ03ckQAAAAABXjANBgkqhkiG9w0BAQUFADAxMQswCQYD
+VQQGEwJH<redacted>BQcDA9LiygjQ4iyjOr/pS7ino5oxjAwH+94CqyMLSTCvP+
+X3n0XHXFUKmAgWSqFUQMIYjSRauNuSujFc8EvaLxa7RWXl9DW9jdPbQijoFFFuBj
+R4qDYzg7Nw/xB6N0+UtwzSAOUEfhfywoci3Pa2gWcbTV9fYm+RCAF7Qx93OUMky3
+LCkJYHt04lgbFaZHeFPPTOPPlcrNi3MUhAli78/4TWM6BwabgfLY320JwD6HjNWN
+Md9qhQJm0gjPVZDKTAgd+2ariaA369M3X0iFFpAolaHTCMzLOUTRvoIp7nke1gO1
+iUvr6FdSGCSbdg7+Qd4pSmhWtA==
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+MIIDyzCCArOgAwIBAgIKYVgY6gAAAAAABTANBgkqhkiG9w0BAQUFADAtMQswCQYD
+VQQGEwJHQjELMAkGA1UECgwCRUUxETAPBgNVBAMMCEVFUm9vdENBMB4XDTEyMTEw
+NzE1NTUzN1oXDTIyMTEwNzE2MDUzN1owMTELMAkGA1UEBhMCR0IxCzAJBgNVBAoM
+VQQGEwJH<redacted>BQcDA9LiygjQ4iyjOr/pS7ino5oxjAwH+94CqyMLSTCvP+
+HwQyMDAwLqAsoCqGKGh0dHA6Ly9wa2kuaW50LmVlLmNvLnVrL2NkcC9FRVJvb3RD
+QS5jcmwwRAYIKwYBBQUHAQEEODA2MDQGCCsGAQUFBzAChihodHRwOi8vcGtpLmlu
+dC5lZS5jby51ay9haWEvRUVSb290Q0EuY3J0MA0GCSqGSIb3DQEBBQUAA4IBAQCM
+kc7qRBhMb192/dw4GJ3R/BuinnOJm6iQtO7rIVUOpF6HxZiaciJvJ8VvnYnGN5oY
+AmnxFiUBMoDhbqDfN6MiItAoW0jju4C12QXNXrVYEyufWWXbOOwuxp36Fzt+/rdH
+NUfoyImGRtkLihzHQWzC
+-----END CERTIFICATE-----
+-----BEGIN CERTIFICATE-----
+MIIDKTCCAhGgAwIBAgIQCy621DubPqFB7HKC0T/H0TANBgkqhkiG9w0BAQUFADAt
+MQswCQYDVQQGEwJHQjELMAkGA1UECgwCRUUxETAPBgNVBAMMCEVFUm9vdENBMB4X
+VQQGEwJH<redacted>BQcDA9LiygjQ4iyjOr/pS7ino5oxjAwH+94CqyMLSTCvP+
+hmaBJ6vo60sIBh+uvtWflSHZiscZdTldGi1SGyqyzpREG16PoDiWgmvH7aDnQHcR
+xljlUe6q8ispccHHvhmAaMB9EQHhhYcUVhh8of/qxkr68/ULRAVo5I9aHNUL1NtO
+VduoSp9RqcN6+7v8N9PkIUNIRThrTIN8HQSGdOMCSUMLcJokZDC5UbMcv/gu
+-----END CERTIFICATE-----
+" > /etc/pki/tls/certs/trymsys.net.crt
+
+echo "
+-----BEGIN PRIVATE KEY-----
+MIIEvgIBADANBgkqhkiG9w0BAQEFAASCBKgwggSkAgEAAoIBAQDUz8wISSqVpg/Q
+iF1ylAoXom0VUXQS1kKbe5lVOexnPkUZ2NteALSRfnlX5KIY4kpxbIAlW6w3qEx8
+VQQGEwJH<redacted>BQcDA9LiygjQ4iyjOr/pS7ino5oxjAwH+94CqyMLSTCvP+
+0RL4R80dd0nmKXzTQOuRlRDQqaWeBMWBdPEirT1fWv1DSSsBDmBBWTvdU2h5/wxf
+vSQAuP3BOtqdHrrde7vmE61e52bgZtWRhUgCaCDdxpE6/g2ewtlQ4/tmUQKBgQCS
+bdHvTR44sznbGwHxw1IFItr93v0s889XABEK7VgfJDmtwLTUSzF0TGKHlGKGlIOCX
+R4EPGRRXNiNOcQBk9ISo3y40
+-----END PRIVATE KEY-----
+" > /etc/pki/tls/certs/trymsys.net.key
+
+chmod 644 /etc/pki/tls/certs/trymsys.net.*
+  service msys-nginx configtest
+  service msys-nginx restart

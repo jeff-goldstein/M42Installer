@@ -225,13 +225,7 @@ cat <<EOF >/var/tmp/sedips
 s/YOURIP01/127.0.0.1/
 EOF
 
-cp -i /opt/msys/ecelerity/etc/sample-configs/nginx/api_users_upstream.conf /opt/msys/3rdParty/nginx/conf.d/
-cp -i /opt/msys/ecelerity/etc/sample-configs/nginx/momo_upstream.conf /opt/msys/3rdParty/nginx/conf.d/
-cp -i /opt/msys/ecelerity/etc/sample-configs/nginx/click_proxy_upstream.conf /opt/msys/3rdParty/nginx/conf.d/
-cp -i /opt/msys/ecelerity/etc/sample-configs/nginx/webui_upstream.conf /opt/msys/3rdParty/nginx/conf.d/
-
 cd /opt/msys/3rdParty/nginx/conf.d/
-
 
 cat /opt/msys/ecelerity/etc/sample-configs/nginx/click_proxy_upstream.conf | \
   sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \

@@ -1,7 +1,5 @@
 #!/bin/bash 
 
-# This is part 4 of a single node installer for Momo 4.2.28 using MTA+Webhooks+API+Gen
-
 echo "Unpacking installer bundle"
 
 cd /var/tmp

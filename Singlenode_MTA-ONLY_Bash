@@ -31,7 +31,7 @@ echo IE: ssh -i tmairs-oregon.pem ec2-user@ec2-54-190-177-235.us-west-2.compute.
 echo move this installer to that server and execute it there
 
 # if running this manually, make sure you are sudo or root first
-sudo -s
+# sudo -s
 
 #alter the following vars then paste most of the rest...
 echo Send this MAC to licensing@messagesystems.com and ask for a key

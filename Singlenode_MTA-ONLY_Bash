@@ -556,21 +556,21 @@ smpp {
 }
 
 
-domain mblox.sms.agg {
-  SMPP_SMSC_Server = \"smpp.mt.us.mblox.com\"
-  SMPP_SMSC_Port = \"3210\"
-  SMPP_SMSC_System_ID = \"<redacted>\"
-  SMPP_SMSC_Password = \"<redacted>\"
-  SMPP_ESME_Address = \"<redacted>\"
-  SMPP_Default_Email_Address = \"<redacted>\"
-  SMPP_Registered_Delivery = (SMSC_Delivery)
-  SMPP_Max_Sms_Subject_Size = \"0\"
-  SMPP_ESME_Service_Type = \"32538\"
-  SMPP_SMS_Data_Coding = \"ascii\"
-  SMPP_Inactivity_Timer = 600
-  SMPP_Enquire_Link_Timer = 90
-  SMPP_Response_Timer = 60
-}
+#domain mblox.sms.agg {
+#  SMPP_SMSC_Server = \"smpp.mt.us.mblox.com\"
+#  SMPP_SMSC_Port = \"3210\"
+#  SMPP_SMSC_System_ID = \"<redacted>\"
+#  SMPP_SMSC_Password = \"<redacted>\"
+#  SMPP_ESME_Address = \"<redacted>\"
+#  SMPP_Default_Email_Address = \"<redacted>\"
+#  SMPP_Registered_Delivery = (SMSC_Delivery)
+#  SMPP_Max_Sms_Subject_Size = \"0\"
+#  SMPP_ESME_Service_Type = \"32538\"
+#  SMPP_SMS_Data_Coding = \"ascii\"
+#  SMPP_Inactivity_Timer = 600
+#  SMPP_Enquire_Link_Timer = 90
+#  SMPP_Response_Timer = 60
+#}
 " > $DEFAULT/conf.d/mobile.conf
 
 

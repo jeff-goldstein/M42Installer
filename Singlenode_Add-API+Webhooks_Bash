@@ -263,8 +263,12 @@ echo
 echo "Installing Generation API"
 echo
 
-yum install -y --config momentum.repo --enablerepo momentum msys-ecelerity-engagement-proxy 
+cd /var/tmp
+cd $MOMOREL/
+./setrepodir
 
+yum install -y --config momentum.repo --enablerepo momentum msys-ecelerity-engagement-proxy 
+cd /opt/msys/ecelerity/etc/
 cat sample-configs/default/msg_gen.conf | sed "s/your[cm]node/yournode/" | \
    sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT.*yournode" | \
    sed "s/#UNCOMMENT-AS-NEEDED //" | grep -v "cluster_cfg *= *true" | \

@@ -147,6 +147,7 @@ sleep 1
 
 export LINE1='"username" : "admin", "password": "admin", "access" : "admin"'
 export LINE2='"firstName" : "Sys", "lastName" : "admin", "email" : "admin@Tdomain.com"'
+sleep 1
 curl -XPOST -H "X-MSYS-CUSTOMER: 1" -H "Content-Type: application/json" -d \
     "{ $LINE1, $LINE2 }" http://localhost:2085/api/v1/users
     

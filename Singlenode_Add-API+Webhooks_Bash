@@ -281,7 +281,46 @@ sed -i -e 's/# include "msg_gen.conf"/include "msg_gen.conf"/'  conf/default/ece
 /opt/msys/ecelerity/bin/eccfg commit --username admin --password admin \
     --add-all --message "Including cluster config and msg_gen config"
  
-service ecelerity restart
+ 
+## RESTART EVERYTHING #
+#################################
+# Stop Services
+#################################
+# If Manager...
+service msyspg stop
+service ecconfigd stop
+
+#If MTA...
+service ecelerity stop
+service msys-riak stop
+
+# If Webhooks...
+service msys-cassandra stop
+service msys-rabbitmq stop
+service msys-app-users-api stop
+service msys-app-webhooks-etl stop
+service msys-app-webhooks-api stop
+service msys-nginx stop
+
+
+#################################
+# Start Services
+#################################
+# If Manager...
+service msyspg start
+service ecconfigd start
+
+#If MTA...
+service ecelerity start
+service msys-riak start
+
+# If Webhooks...
+service msys-cassandra start
+service msys-rabbitmq start
+service msys-app-users-api start
+service msys-app-webhooks-etl start
+service msys-app-webhooks-api start
+service msys-nginx start
 
 
 echo

@@ -663,3 +663,5 @@ echo
 echo "Installation complete!"
 echo 
 echo 
+cat /etc/motd
+sh /etc/motd

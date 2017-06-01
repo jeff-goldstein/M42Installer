@@ -45,6 +45,9 @@ read R
 echo "Enter the friendly name of this server (IE: \"my dev server\")"
 read FNAME
 
+echo "Enter the FQDN  (IE: \"myserver.home.net\") or press ENTER/RETURN for default"
+read MYFQDN
+
 echo "Enter the name of the system operator (IE: \"Bob Jones\")"
 read USERNAME
 
@@ -76,7 +79,9 @@ echo "PLEASE WAIT....."
 
  # Use $HOSTNAME instead
  # MYHOST=`hostname -f`
+ if [ $MYFQDN=""]; then
   MYFQDN=`hostname -f`
+ fi 
   PUBLICIP=`curl -s checkip.dyndns.org|sed -e 's/.*Current IP Address: //' -e 's/<.*$//' `
     PRIVATEIP=`hostname -i`
   

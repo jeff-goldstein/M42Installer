@@ -264,13 +264,14 @@ sed -i -e "s/Include \"/#Include \"/" ecconfigd.conf
 echo
 echo COPY the password below so you can paste it in the next prompt...
 echo $SVCPASSWD
+echo " ** IMPORTANT **"
 echo "Copy the password above to your clip board then paste it for the next prompt" 
+echo " ** IMPORTANT **"
 echo
 
 /opt/msys/ecelerity/bin/create_ssl_cert ecconfigd $HOSTNAME /var/ecconfigd/apache
 /opt/msys/3rdParty/apache/sbin/htdigest -c /var/ecconfigd/repo/svn-auth.htdigest  "ecconfigd repo" ecuser
 
-echo "Copy the password above to your clip board then paste it for the next prompt" 
 echo "Deal with the SERVICE password above first... Press ^C to exit or ENTER to continue"
 read R
 

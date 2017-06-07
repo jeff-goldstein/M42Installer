@@ -503,7 +503,7 @@ maintainer_pool = \"pool\"
 # ----------------------------------------
 
 # For V3.5 add a global blackhole 
-Blackhole = true
+Blackhole = inline
 
 
 

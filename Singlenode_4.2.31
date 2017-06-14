@@ -1,9 +1,5 @@
 #!/bin/bash
-
-
-
 # This is a full single node installer for Momo 4.2.31 
-
 export INSTVER="4.2.31.1"
 
 clear
@@ -255,6 +251,11 @@ read R
 ./setrepodir
 pwd >/var/tmp/inst.dir
 
+cat <<EOF >/var/tmp/sedfqdns
+s/yournode01.yourdomain.tld/$HOSTNAME/
+EOF
+
+
 yum install -y --config momentum.repo --enablerepo momentum \
 msys-ecelerity-config-server \
 msys-role-db \
@@ -329,7 +330,9 @@ sudo -u ecuser ../bin/eccfg commit -m 'Add ecdb config' --username admin \
 service ecelerity start
 service msys-riak start
 
-
+if [ $GEN = "y" ]; then
+      MYTZ="America/New_York"
+   fi
 
 ###########################################################
 #These are custom for the SETEAM install
@@ -625,6 +628,131 @@ end;
 msys.registerModule(\"policy\", mod);
 " > $DEFAULT/lua/policy.lua
 
+# Install Generation if needed
+if [ $GEN = "y" ]; then
+      cp /opt/msys/ecelerity/etc/sample-configs/default/msg_gen.conf  /opt/msys/ecelerity/etc/conf/default/
+      cp /opt/msys/ecelerity/etc/sample-configs/default/smtpapi.conf /opt/msys/ecelerity/etc/conf/default/
+      sed -i -e 's|cluster_cfg = true|cluster_cfg = false|' /opt/msys/ecelerity/etc/conf/default/msg_gen.conf
+      sed -i "s/__EXTERNAL_DNS_HOSTNAME__/$MYFQDN/" $DEFAULT/msg_gen.conf
+      sed -i "s/__EXTERNAL_DNS_HOSTNAME__/$MYFQDN/" $DEFAULT/conf.d/ecelerity_mods.conf
+      sed -i -e 's/# include "msg_gen.conf"/include "msg_gen.conf"/'  $DEFAULT/ecelerity.conf
+      sed -i -e 's/# include "smtpapi.conf"/include "smtpapi.conf"/'  $DEFAULT/ecelerity.conf
+      /opt/msys/ecelerity/bin/eccfg commit --username admin --password $ADMINPASS \
+        --add-all --message "Including cluster config and msg_gen config"
+      cd /var/tmp/$MOMOREL
+      ./setrepodir
+      yum install -y --config momentum.repo \
+ --enablerepo momentum msys-nginx
+      cd /opt/msys/3rdParty/nginx/conf.d/
+
+      cat /opt/msys/ecelerity/etc/sample-configs/nginx/click_proxy_upstream.conf | \
+        sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
+        sed "s/#UNCOMMENT-AS-NEEDED//" | sed 's/:81/:2081/' >click_proxy_upstream.conf
+      cat /opt/msys/ecelerity/etc/sample-configs/nginx/momo_upstream.conf | \
+        sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
+        sed "s/#UNCOMMENT-AS-NEEDED//" >momo_upstream.conf
+      cat /opt/msys/ecelerity/etc/sample-configs/nginx/webui_upstream.conf | \
+        sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
+        sed "s/#UNCOMMENT-AS-NEEDED//" >webui_upstream.conf
+      cat /opt/msys/ecelerity/etc/sample-configs/nginx/api_metrics_upstream.conf | \
+        sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
+        sed "s/#UNCOMMENT-AS-NEEDED//" >api_metrics_upstream.conf
+      cat /opt/msys/ecelerity/etc/sample-configs/nginx/api_webhooks_upstream.conf | \
+        sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
+        sed "s/#UNCOMMENT-AS-NEEDED//" >api_webhooks_upstream.conf
+      cat /opt/msys/ecelerity/etc/sample-configs/nginx/api_users_upstream.conf | \
+        sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
+        sed "s/#UNCOMMENT-AS-NEEDED//" >api_users_upstream.conf
+      cat /opt/msys/ecelerity/etc/sample-configs/nginx/api_adaptive_delivery_upstream.conf | \
+        sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
+        sed "s/#UNCOMMENT-AS-NEEDED//" >api_adaptive_delivery_upstream.conf
+      cp -f /dev/null api_webhooks.conf
+
+      sed -i -e 's/#include "../conf.d/app.loc"/include "../conf.d/app.loc"/  \ 
+        /opt/msys/3rdParty/nginx/conf.d/web_proxy.conf
+
+      service msys-nginx configtest
+      service msys-nginx start
+      service ecelerity restart
+
+fi
+
+# Install Webhooks if needed
+if [ $WH = "y" ]; then
+
+      cd /var/tmp/$MOMOREL
+      ./setrepodir
+
+yum install -y --config momentum.repo --enablerepo momentum \
+ msys-rabbitmq \
+ msys-app-webhooks-api \
+ msys-app-webhooks-etl
+
+      sed -i -e 's/,{"::1", 5672}//'  /opt/msys/3rdParty/etc/rabbitmq/rabbitmq.config
+
+
+export THIRDPARTY=/opt/msys/3rdParty
+export RABBITMQCTL="$THIRDPARTY/sbin/rabbitmqctl"
+export RABBITMQADMIN="$THIRDPARTY/sbin/rabbitmqadmin"
+service msys-rabbitmq start
+$RABBITMQADMIN declare exchange name=momentum_metrics type=topic
+$RABBITMQCTL add_user rabbitmq "p1-Vk0lXy"
+$RABBITMQCTL set_user_tags rabbitmq administrator
+$RABBITMQCTL set_permissions -p '/' rabbitmq '.*' '.*' '.*'
+$RABBITMQCTL delete_user guest
+
+echo '
+{
+ "application": {
+ "cassandraSupport": {
+ "enabled": false
+ },
+ "analyticsSupport": {
+ "enabled": false
+ }
+ }
+}
+' > /opt/msys/app/webhooks-api/config/production.json
+
+
+echo '
+[
+ {
+ "name": "My example webhook #1",
+ "events": ["policy_rejection", "bounce", "delay"],
+ "target": "https://example-domain.com/path/to/endpoint"
+ },
+ {
+ "name": "My example webhook #2",
+ "events": ["open", "click"],
+ "target": "https://your-consumer-domain.com/whatever/path/to/your/code"
+ },
+ {
+ "name": "My example webhook #3",
+ "events": [
+ "delivery", "injection", "bounce", "delay", "policy_rejection",
+ "out_of_band", "open", "click",
+ "generation_failure", "generation_rejection", "spam_complaint",
+ "ad_status", "ad_adjust",
+ "link_unsubscribe", "sms_status"
+ ],
+ "target": "https://your-consumer-domain2.com/all/events/please/path/to/your/code"
+ }
+]
+' >  /opt/msys/app/webhooks-api/config/webhooks.json
+
+echo '{}' > /opt/msys/app/webhooks-etl/config/production.json
+
+# remove comment from the event_hydrant and event_hose
+sed "/^\s*#event_.*}$/ s|^||; /^\s*#event_/, /);$/ s|^||" conf/default/ecelerity.conf
+
+/opt/msys/ecelerity/bin/eccfg commit \
+ --username admin --password $ADMINPASS \
+ --add-all --message "Enabling Event Hose"
+
+      service ecelerity restart
+
+fi
 
 #######################################
 # Commit and restart

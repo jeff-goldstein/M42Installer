@@ -622,51 +622,55 @@ msys.registerModule(\"policy\", mod);
 
 # Install Generation if needed
 if [ $GEN = "y" ]; then
+      cd /var/tmp/$MOMOREL
+      ./setrepodir
+      yum install -y --config momentum.repo --enablerepo momentum msys-nginx
+
+### START OF Web Proxy config ###
+      rm -rf /opt/msys/3rdParty/nginx/conf.d/api_webhooks.conf
+      rm -rf /opt/msys/3rdParty/nginx/conf.d/web_proxy.conf
+      rm -rf /opt/msys/3rdParty/nginx/conf.d/app.loc
+      rm -rf /opt/msys/3rdParty/nginx/conf.d/momo.loc
+      rm -rf /opt/msys/3rdParty/nginx/conf.d/default.cors
+      rm -rf /opt/msys/3rdParty/nginx/conf.d/momo_upstream.conf
+      rm -rf /opt/msys/3rdParty/nginx/conf.d/click_proxy_upstream.conf
+      rm -rf /opt/msys/3rdParty/nginx/conf.d/api_webhooks_upstream.conf
+
+      cp -i /opt/msys/ecelerity/etc/sample-configs/nginx/web_proxy.conf /opt/msys/3rdParty/nginx/conf.d/
+      cp -i /opt/msys/ecelerity/etc/sample-configs/nginx/app.loc /opt/msys/3rdParty/nginx/conf.d/
+      cp -i /opt/msys/ecelerity/etc/sample-configs/nginx/momo.loc /opt/msys/3rdParty/nginx/conf.d/
+      cp -i /opt/msys/ecelerity/etc/sample-configs/nginx/default.cors /opt/msys/3rdParty/nginx/conf.d/
+      cp -i /opt/msys/ecelerity/etc/sample-configs/nginx/momo_upstream.conf /opt/msys/3rdParty/nginx/conf.d/
+      cp -i /opt/msys/ecelerity/etc/sample-configs/nginx/click_proxy_upstream.conf /opt/msys/3rdParty/nginx/conf.d/
+      cp -i /opt/msys/ecelerity/etc/sample-configs/nginx/api_webhooks_upstream.conf /opt/msys/3rdParty/nginx/conf.d/
+      cp -f /dev/null api_webhooks.conf
+      
+      cd /opt/msys/3rdParty/nginx/conf.d/
+      
+      sed -i "0,/^#UN.*;$/ s/^#UN.*;$/  server $MYFQDN:2081;/" ./click_proxy_upstream.conf    
+      sed -i "0,/^#UN.*;$/ s/^#UN.*;$/  server $MYFQDN:2081;/" ./momo_upstream.conf    
+      sed -i "0,/^#UN.*;$/ s/^#UN.*;$/  server $MYFQDN:2081;/" ./api_webhooks_upstream.conf   
+      sed -i 's/#include/include/' ./web_proxy.conf 
+  
+      service msys-nginx configtest
+      service msys-nginx start
+      service ecelerity restart
+### END OF Web Proxy config ###
+
+### API CONFIG ###
+      rm -rf /opt/msys/ecelerity/etc/conf/default/msg_gen.conf
+      rm -rf /opt/msys/ecelerity/etc/conf/default/smtpapi.conf
+
       cp /opt/msys/ecelerity/etc/sample-configs/default/msg_gen.conf  /opt/msys/ecelerity/etc/conf/default/
       cp /opt/msys/ecelerity/etc/sample-configs/default/smtpapi.conf /opt/msys/ecelerity/etc/conf/default/
+
       sed -i -e 's|cluster_cfg = true|cluster_cfg = false|' /opt/msys/ecelerity/etc/conf/default/msg_gen.conf
       sed -i "s/__EXTERNAL_DNS_HOSTNAME__/$MYFQDN/" $DEFAULT/msg_gen.conf
       sed -i "s/__EXTERNAL_DNS_HOSTNAME__/$MYFQDN/" $DEFAULT/conf.d/ecelerity_mods.conf
       sed -i -e 's/# include "msg_gen.conf"/include "msg_gen.conf"/'  $DEFAULT/ecelerity.conf
       sed -i -e 's/# include "smtpapi.conf"/include "smtpapi.conf"/'  $DEFAULT/ecelerity.conf
-      /opt/msys/ecelerity/bin/eccfg commit --username admin --password $ADMINPASS \
-        --add-all --message "Including cluster config and msg_gen config"
-      cd /var/tmp/$MOMOREL
-      ./setrepodir
-      yum install -y --config momentum.repo \
- --enablerepo momentum msys-nginx
-      cd /opt/msys/3rdParty/nginx/conf.d/
-
-      cat /opt/msys/ecelerity/etc/sample-configs/nginx/click_proxy_upstream.conf | \
-        sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
-        sed "s/#UNCOMMENT-AS-NEEDED//" | sed 's/:81/:2081/' >click_proxy_upstream.conf
-      cat /opt/msys/ecelerity/etc/sample-configs/nginx/momo_upstream.conf | \
-        sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
-        sed "s/#UNCOMMENT-AS-NEEDED//" >momo_upstream.conf
-      cat /opt/msys/ecelerity/etc/sample-configs/nginx/webui_upstream.conf | \
-        sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
-        sed "s/#UNCOMMENT-AS-NEEDED//" >webui_upstream.conf
-      cat /opt/msys/ecelerity/etc/sample-configs/nginx/api_metrics_upstream.conf | \
-        sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
-        sed "s/#UNCOMMENT-AS-NEEDED//" >api_metrics_upstream.conf
-      cat /opt/msys/ecelerity/etc/sample-configs/nginx/api_webhooks_upstream.conf | \
-        sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
-        sed "s/#UNCOMMENT-AS-NEEDED//" >api_webhooks_upstream.conf
-      cat /opt/msys/ecelerity/etc/sample-configs/nginx/api_users_upstream.conf | \
-        sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
-        sed "s/#UNCOMMENT-AS-NEEDED//" >api_users_upstream.conf
-      cat /opt/msys/ecelerity/etc/sample-configs/nginx/api_adaptive_delivery_upstream.conf | \
-        sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
-        sed "s/#UNCOMMENT-AS-NEEDED//" >api_adaptive_delivery_upstream.conf
-      cp -f /dev/null api_webhooks.conf
-
-## FIXME - is this still required?
-#      sed 's/#include "..\/conf.d\/app.loc"/include "..\/conf.d\/app.loc"/'  /opt/msys/3rdParty/nginx/conf.d/web_proxy.conf
-
-      service msys-nginx configtest
-      service msys-nginx start
-      service ecelerity restart
-
+      
+      /opt/msys/ecelerity/bin/eccfg commit --username admin --password $ADMINPASS  --add-all --message "Including cluster config and msg_gen config"
 fi
 
 # Install Webhooks if needed
@@ -680,18 +684,49 @@ yum install -y --config momentum.repo --enablerepo momentum \
  msys-app-webhooks-api \
  msys-app-webhooks-etl
 
+ ### START OF Web Proxy config ###
+      rm -rf /opt/msys/3rdParty/nginx/conf.d/api_webhooks.conf
+      rm -rf /opt/msys/3rdParty/nginx/conf.d/web_proxy.conf
+      rm -rf /opt/msys/3rdParty/nginx/conf.d/app.loc
+      rm -rf /opt/msys/3rdParty/nginx/conf.d/momo.loc
+      rm -rf /opt/msys/3rdParty/nginx/conf.d/default.cors
+      rm -rf /opt/msys/3rdParty/nginx/conf.d/momo_upstream.conf
+      rm -rf /opt/msys/3rdParty/nginx/conf.d/click_proxy_upstream.conf
+      rm -rf /opt/msys/3rdParty/nginx/conf.d/api_webhooks_upstream.conf
+
+      cp -i /opt/msys/ecelerity/etc/sample-configs/nginx/web_proxy.conf /opt/msys/3rdParty/nginx/conf.d/
+      cp -i /opt/msys/ecelerity/etc/sample-configs/nginx/app.loc /opt/msys/3rdParty/nginx/conf.d/
+      cp -i /opt/msys/ecelerity/etc/sample-configs/nginx/momo.loc /opt/msys/3rdParty/nginx/conf.d/
+      cp -i /opt/msys/ecelerity/etc/sample-configs/nginx/default.cors /opt/msys/3rdParty/nginx/conf.d/
+      cp -i /opt/msys/ecelerity/etc/sample-configs/nginx/momo_upstream.conf /opt/msys/3rdParty/nginx/conf.d/
+      cp -i /opt/msys/ecelerity/etc/sample-configs/nginx/click_proxy_upstream.conf /opt/msys/3rdParty/nginx/conf.d/
+      cp -i /opt/msys/ecelerity/etc/sample-configs/nginx/api_webhooks_upstream.conf /opt/msys/3rdParty/nginx/conf.d/
+      cp -f /dev/null api_webhooks.conf
+      
+      cd /opt/msys/3rdParty/nginx/conf.d/
+      
+      sed -i "0,/^#UN.*;$/ s/^#UN.*;$/  server $MYFQDN:2081;/" ./click_proxy_upstream.conf    
+      sed -i "0,/^#UN.*;$/ s/^#UN.*;$/  server $MYFQDN:2081;/" ./momo_upstream.conf    
+      sed -i "0,/^#UN.*;$/ s/^#UN.*;$/  server $MYFQDN:2081;/" ./api_webhooks_upstream.conf   
+      sed -i 's/#include/include/' ./web_proxy.conf 
+  
+      service msys-nginx configtest
+      service msys-nginx start
+      service ecelerity restart
+### END OF Web Proxy config ###
+
+### WH CONFIG ###
       sed -i -e 's/,{"::1", 5672}//'  /opt/msys/3rdParty/etc/rabbitmq/rabbitmq.config
 
-
-export THIRDPARTY=/opt/msys/3rdParty
-export RABBITMQCTL="$THIRDPARTY/sbin/rabbitmqctl"
-export RABBITMQADMIN="$THIRDPARTY/sbin/rabbitmqadmin"
-service msys-rabbitmq start
-$RABBITMQADMIN declare exchange name=momentum_metrics type=topic
-$RABBITMQCTL add_user rabbitmq "p1-Vk0lXy"
-$RABBITMQCTL set_user_tags rabbitmq administrator
-$RABBITMQCTL set_permissions -p '/' rabbitmq '.*' '.*' '.*'
-$RABBITMQCTL delete_user guest
+      export THIRDPARTY=/opt/msys/3rdParty
+      export RABBITMQCTL="$THIRDPARTY/sbin/rabbitmqctl"
+      export RABBITMQADMIN="$THIRDPARTY/sbin/rabbitmqadmin"
+      service msys-rabbitmq start
+      $RABBITMQADMIN declare exchange name=momentum_metrics type=topic
+      $RABBITMQCTL add_user rabbitmq "p1-Vk0lXy"
+      $RABBITMQCTL set_user_tags rabbitmq administrator
+      $RABBITMQCTL set_permissions -p '/' rabbitmq '.*' '.*' '.*'
+      $RABBITMQCTL delete_user guest
 
 echo '
 {

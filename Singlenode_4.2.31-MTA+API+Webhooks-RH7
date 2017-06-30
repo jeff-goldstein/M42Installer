@@ -710,23 +710,13 @@ echo '
 echo '
 [
  {
- "name": "My example webhook #1",
- "events": ["policy_rejection", "bounce", "delay"],
- "target": "https://example-domain.com/path/to/endpoint"
- },
- {
- "name": "My example webhook #2",
- "events": ["open", "click"],
- "target": "https://your-consumer-domain.com/whatever/path/to/your/code"
- },
- {
- "name": "My example webhook #3",
+ "name": "My example webhook",
  "events": [
- "delivery", "injection", "bounce", "delay", "policy_rejection",
- "out_of_band", "open", "click",
- "generation_failure", "generation_rejection", "spam_complaint",
- "ad_status", "ad_adjust",
- "link_unsubscribe", "sms_status"
+   "delivery", "injection", "bounce", "delay", "policy_rejection",
+   "out_of_band", "open", "click",
+   "generation_failure", "generation_rejection", "spam_complaint",
+   "ad_status", "ad_adjust",
+   "link_unsubscribe", "sms_status"
  ],
  "target": "https://your-consumer-domain2.com/all/events/please/path/to/your/code"
  }

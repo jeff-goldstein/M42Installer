@@ -6,14 +6,14 @@ clear
 echo Installing Momentum $INSTVER 
 echo
 echo Please send the MAC below to licensing@messagesystems.com for a valid license
-ifconfig |grep -i HWaddr
+ifconfig |grep -i "ether " |head -1
 echo
 
 echo "Press ENTER/RETURN to continue"
 read R
 
 echo Launch a CentOS 7.x instance 
-echo \(CentOS Linux 7 x86_64 HVM EBS 1704_01\) 
+echo \(CentOS Linux 7 x86_64 HVM EBS 1704_01 - ami-51076231\) 
 echo Select instance type m3.medium, \(recommended\) click NEXT
 echo Select "Protect against accidental termination", click NEXT
 echo Update the volume size to 100Mb
@@ -55,6 +55,13 @@ read EMAIL
 echo "What timezone is the server in? (EST,CST,MST,PST)"
 read TZ
 
+echo "Do you want to enable Webhooks support? (y/n)"
+read WH
+
+echo "Do you want to enable API Generation support? (y/n)"
+read GEN
+
+
 
 # Only needed for manual deployment
 #export FNAME="RH7 Test Server for M4.2.31"
@@ -83,13 +90,6 @@ read TZ
    if [ $MYTZ = "" ]; then
       MYTZ="America/Los_Angeles"
    fi
-
-echo "Do you want to enable Webhooks support? (y/n)"
-read WH
-
-echo "Do you want to enable API Generation support? (y/n)"
-read GEN
-
 
 echo "PLEASE WAIT....."
 
@@ -221,18 +221,14 @@ lynx https://support.messagesystems.com/docs
 ###############################################################################
 
 cd /var/tmp
-MOMOVER=`find -name 'momentum-bundle*.tar.gz'`
-   if [ $MOMOVER = "" ]; then
-      MOMOVER=`find -name 'momentum-mta-bundle*.tar.gz'`
-   fi
+
+   MOMOVER=`find -name 'momentum-mta-bundle*.tar.gz'`
    if [ $MOMOVER = "" ]; then
       echo "cannot continue - no install bundle found"
       exit
    fi
-MOMOREL='momentum-mta-4.'`echo $MOMOVER | cut -d'.' -f 3-5`
-   if [ $MOMOREL = "" ]; then
-      MOMOREL='momentum-mta-4.'`echo $MOMOVER | cut -d'.' -f 3-5`
-   fi
+   
+   MOMOREL='momentum-mta-4.'`echo $MOMOVER | cut -d'.' -f 3-5`
    if [ $MOMOREL = "" ]; then
       echo "cannot continue - no install bundle found"
       exit
@@ -329,10 +325,6 @@ sudo -u ecuser ../bin/eccfg commit -m 'Add ecdb config' --username admin \
 
 service ecelerity start
 service msys-riak start
-
-if [ $GEN = "y" ]; then
-      MYTZ="America/New_York"
-   fi
 
 ###########################################################
 #These are custom for the SETEAM install
@@ -668,8 +660,8 @@ if [ $GEN = "y" ]; then
         sed "s/#UNCOMMENT-AS-NEEDED//" >api_adaptive_delivery_upstream.conf
       cp -f /dev/null api_webhooks.conf
 
-      sed -i -e 's/#include "../conf.d/app.loc"/include "../conf.d/app.loc"/  \ 
-        /opt/msys/3rdParty/nginx/conf.d/web_proxy.conf
+## FIXME - is this still required?
+#      sed 's/#include "..\/conf.d\/app.loc"/include "..\/conf.d\/app.loc"/'  /opt/msys/3rdParty/nginx/conf.d/web_proxy.conf
 
       service msys-nginx configtest
       service msys-nginx start

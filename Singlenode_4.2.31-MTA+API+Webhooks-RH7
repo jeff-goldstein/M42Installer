@@ -326,6 +326,11 @@ sudo -u ecuser ../bin/eccfg commit -m 'Add ecdb config' --username admin \
 service ecelerity start
 service msys-riak start
 
+# To fix the ecconfig stack trace problem
+sed -i 's/use strict;/$ENV{GIMLI_WATCHDOG_INTERVAL} = 300;\nuse strict;/' /etc/init.d/ecconfigd
+service ecconfigd restart
+
+
 ###########################################################
 #These are custom for the SETEAM install
 ###########################################################

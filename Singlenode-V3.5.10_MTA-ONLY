@@ -198,6 +198,9 @@ echo "..............................."
 yum -y install perl mcelog sysstat ntp gdb lsof.x86_64 wget yum-utils bind-utils telnet mlocate lynx unzip sudo
 yum -y install make gcc curl cpan mysql*
 
+#Make sure it all stays up to date
+#Run a yum update at 3AM daily
+echo "0 3 * * * root /usr/bin/yum update -y >/dev/null 2>&1">/etc/cron.d/yum-updates
 
 echo "DOWNLOAD the Momentum 3 SENDING version you want"
 echo " or SCP the bundle to /var/tmp" 

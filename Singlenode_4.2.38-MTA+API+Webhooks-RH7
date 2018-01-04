@@ -769,7 +769,7 @@ echo '
 echo '{}' > /opt/msys/app/webhooks-etl/config/production.json
 
 # remove comment from the event_hydrant and event_hose
-sed "/^\s*#event_.*}$/ s|^||; /^\s*#event_/, /);$/ s|^||" conf/default/ecelerity.conf
+sed -i "/^\s*#event_.*}$/ s|^||; /^\s*#event_/, /);$/ s|^||" $DEFAULT/ecelerity.conf
 
 /opt/msys/ecelerity/bin/eccfg commit \
  --username admin --password $ADMINPASS \

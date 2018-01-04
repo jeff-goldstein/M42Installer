@@ -1,6 +1,6 @@
 #!/bin/bash
 # This is a full single node installer for Momo 4.2.31 
-export INSTVER="4.2.31.1"
+export INSTVER="4.2.38"
 
 clear
 echo Installing Momentum $INSTVER 
@@ -65,7 +65,7 @@ read GEN
 
 # Only needed for manual deployment
 #export FNAME="RH7 Test Server for M4.2.31"
-#export MYFQDN="test.trymsys.net"
+#export MYFQDN="dev2.trymsys.net"
 #export USRNM="Tom Mairs"
 #export EMAIL="tom.mairs@sparkpost.com"
 #export TZ=MST
@@ -118,7 +118,7 @@ echo API Generation = $GEN
 
 echo
 
-export DEFAULT=/opt/msys/ecelerity/etc/conf/default/
+echoexport DEFAULT=/opt/msys/ecelerity/etc/conf/default/
 
  
 echo "Applying environment changes..."
@@ -128,7 +128,7 @@ echo 'export TZ=$MYTZ' >> /etc/profile
 export TZ=$MYTZ
 
 
-echo
+
 echo "Updating existing packages..."
 echo "..............................."
 yum clean headers

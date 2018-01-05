@@ -192,6 +192,9 @@ firewall-cmd --zone=public --permanent --add-service=ssh
 firewall-cmd --zone=public --permanent --add-service=smtp
 firewall-cmd --zone=public --permanent --add-port=587/tcp
 firewall-cmd --zone=public --permanent --add-port=81/tcp
+firewall-cmd --zone=public --permanent --add-port=2081/tcp
+firewall-cmd --zone=public --permanent --add-port=2084/tcp
+
 systemctl enable firewalld
 
 

@@ -1,5 +1,21 @@
 #!/bin/bash
-# This is a full single node installer for Momo 4.2.31 
+#
+#
+# Momentum 4.2.38.0 is being released in three distinct flavors:
+#  - RH6 MTA-only bundle. Will operate on the Momentum 3.6 hardware footprint, and is intended primarily for the upgrade of 
+#        existing customers currently running Momentum 3.6.x, and for new Momentum on-premise installations in a RH6 environment. 
+#        Existing installations of previous RH6 MTA-only releases can also be upgraded to 4.2.38. 
+#  - RH7 MTA-only bundle. Primarily meant for new Momentum on-premise installations in a RH7 environment. Existing installations 
+#        of previous RH7 MTA-only releases can also be upgraded to 4.2.38.
+#  - RH6 Full-featured bundle, including MTA, Message Generation, Webhooks, Analytics, Cassandra, Vertica, etc. 
+#        This bundle is intended for upgrade of existing customers running previous Momentum 4.x full-feature releases. 
+#        This release is available on the private part of the support site and the internal teams have the ability to download 
+#        and share it with existing customers. 
+# Bundles, release notes, installation and upgrade instructions, and change log are available on support.messagesystems.com.
+#
+# This is a full single node installer for Momo 4.2.38 RH7 MTA Only 
+
+
 export INSTVER="4.2.38"
 
 clear

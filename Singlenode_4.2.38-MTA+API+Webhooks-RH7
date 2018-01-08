@@ -46,7 +46,10 @@ echo move this installer to that server and execute it there
 
 # if running this manually, make sure you are sudo or root first
 
+if [ $USER -ne "root" ]
+then
 sudo -s
+fi
 
 echo Send this MAC to licensing@messagesystems.com and ask for a key
 
@@ -80,7 +83,7 @@ read GEN
 
 
 # Only needed for manual deployment
-#export FNAME="RH7 Test Server for M4.2.31"
+#export FNAME="RH7 Test Server for M4.2.38"
 #export MYFQDN="dev2.trymsys.net"
 #export USRNM="Tom Mairs"
 #export EMAIL="tom.mairs@sparkpost.com"
@@ -113,11 +116,12 @@ echo "PLEASE WAIT....."
 
  # Use $HOSTNAME instead
  # MYHOST=`hostname -f`
- if [ $MYFQDN=""]; then
+ if [ $MYFQDN="" ]; then
   MYFQDN=`hostname -f`
  fi 
- PUBLICIP=`curl -s checkip.dyndns.org|sed -e 's/.*Current IP Address: //' -e 's/<.*$//' `
- PRIVATEIP=`hostname -i`
+ 
+ export PUBLICIP=`curl -s checkip.dyndns.org|sed -e 's/.*Current IP Address: //' -e 's/<.*$//' `
+ export PRIVATEIP=`hostname -i`
   
 echo
 echo Using these settings:

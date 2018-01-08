@@ -134,7 +134,8 @@ echo API Generation = $GEN
 
 echo
 
-echoexport DEFAULT=/opt/msys/ecelerity/etc/conf/default/
+echo
+export DEFAULT=/opt/msys/ecelerity/etc/conf/default/
 
  
 echo "Applying environment changes..."

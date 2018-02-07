@@ -97,7 +97,7 @@ echo "PLEASE WAIT....."
 
  # Use $HOSTNAME instead
  # MYHOST=`hostname -f`
- if [ $MYFQDN=""]; then
+ if [ $MYFQDN="" ]; then
   MYFQDN=`hostname -f`
  fi 
  PUBLICIP=`curl -s checkip.dyndns.org|sed -e 's/.*Current IP Address: //' -e 's/<.*$//' `
@@ -321,7 +321,7 @@ sed -i -e 's|/opt/msys/etc/installer/eccmgr.d/||' conf/default/eccluster.conf
 sed -i -e 's|/opt/msys/etc/installer/ecelerity.d/|ecdb.conf|' conf/default/ecelerity.conf
 
 # comment out the event_hydrant and event_hose
-sed "/^\s*event_.*}$/ s|^|#|; /^\s*event_/, /);$/ s|^|#|" conf/default/ecelerity.conf
+sed -i -e  "/^\s*event_.*}$/ s|^|#|; /^\s*event_/, /);$/ s|^|#|" conf/default/ecelerity.conf
 
 sudo -u ecuser ../bin/eccfg commit -m 'Add ecdb config' --username admin \
    --add-all --password $ADMINPASS

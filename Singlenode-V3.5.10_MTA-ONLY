@@ -73,6 +73,24 @@ read TZ
    if [ $MYTZ = "" ]; then
       MYTZ="America/Los_Angeles"
    fi
+   
+      if [ $TZ = "EDT" ]; then
+      MYTZ="America/New_York"
+   fi
+   if [ $TZ = "CDT" ]; then
+      MYTZ="America/Chicago"
+   fi
+   if [ $TZ = "MDT" ]; then
+      MYTZ="America/Edmonton"
+   fi
+   if [ $TZ = "PDT" ]; then
+      MYTZ="America/Los_Angeles"
+   fi
+   if [ $MYTZ = "" ]; then
+      MYTZ="America/Los_Angeles"
+   fi
+
+
 
 echo "PLEASE WAIT....."
 

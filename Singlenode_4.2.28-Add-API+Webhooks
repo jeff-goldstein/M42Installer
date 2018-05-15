@@ -145,6 +145,40 @@ echo '
 service msys-app-users-api start
 sleep 1
 
+# Build Nginx config
+
+
+cd /opt/msys/3rdParty/nginx/conf.d/
+
+cat /opt/msys/ecelerity/etc/sample-configs/nginx/click_proxy_upstream.conf | \
+  sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
+  sed "s/#UNCOMMENT-AS-NEEDED//" | sed 's/:81/:2081/' >click_proxy_upstream.conf
+cat /opt/msys/ecelerity/etc/sample-configs/nginx/momo_upstream.conf | \
+  sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
+  sed "s/#UNCOMMENT-AS-NEEDED//" >momo_upstream.conf
+cat /opt/msys/ecelerity/etc/sample-configs/nginx/webui_upstream.conf | \
+  sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
+  sed "s/#UNCOMMENT-AS-NEEDED//" >webui_upstream.conf
+cat /opt/msys/ecelerity/etc/sample-configs/nginx/api_metrics_upstream.conf | \
+  sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
+  sed "s/#UNCOMMENT-AS-NEEDED//" >api_metrics_upstream.conf
+cat /opt/msys/ecelerity/etc/sample-configs/nginx/api_webhooks_upstream.conf | \
+  sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
+  sed "s/#UNCOMMENT-AS-NEEDED//" >api_webhooks_upstream.conf
+cat /opt/msys/ecelerity/etc/sample-configs/nginx/api_users_upstream.conf | \
+  sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
+  sed "s/#UNCOMMENT-AS-NEEDED//" >api_users_upstream.conf
+cat /opt/msys/ecelerity/etc/sample-configs/nginx/api_adaptive_delivery_upstream.conf | \
+  sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
+  sed "s/#UNCOMMENT-AS-NEEDED//" >api_adaptive_delivery_upstream.conf
+cp -f /dev/null api_webhooks.conf
+
+service msys-nginx configtest
+service msys-nginx start
+echo "0 17 * * * /opt/msys/3rdParty/bin/node /opt/msys/app/webhooks-api/cron/purge_null_webhook_configs.js --NODE_CONFIG_DIR=/opt/msys/app/webhooks-api/cron/config --NODE_ENV=production >> /var/log/msys-nodejs/purge_null_webhook_configs_cron.log 2>&1
+" > /etc/cron.d/msys-webhook
+
+#Build Users API
 export LINE1='"username" : "admin", "password": "admin", "access" : "admin"'
 export LINE2='"firstName" : "Sys", "lastName" : "admin", "email" : "admin@Tdomain.com"'
 sleep 1
@@ -225,37 +259,6 @@ sed -i 's/# event_hose/event_hose/' /opt/msys/ecelerity/etc/conf/default/eceleri
 service ecelerity restart
 sleep 1
 
-
-
-cd /opt/msys/3rdParty/nginx/conf.d/
-
-cat /opt/msys/ecelerity/etc/sample-configs/nginx/click_proxy_upstream.conf | \
-  sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
-  sed "s/#UNCOMMENT-AS-NEEDED//" | sed 's/:81/:2081/' >click_proxy_upstream.conf
-cat /opt/msys/ecelerity/etc/sample-configs/nginx/momo_upstream.conf | \
-  sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
-  sed "s/#UNCOMMENT-AS-NEEDED//" >momo_upstream.conf
-cat /opt/msys/ecelerity/etc/sample-configs/nginx/webui_upstream.conf | \
-  sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
-  sed "s/#UNCOMMENT-AS-NEEDED//" >webui_upstream.conf
-cat /opt/msys/ecelerity/etc/sample-configs/nginx/api_metrics_upstream.conf | \
-  sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
-  sed "s/#UNCOMMENT-AS-NEEDED//" >api_metrics_upstream.conf
-cat /opt/msys/ecelerity/etc/sample-configs/nginx/api_webhooks_upstream.conf | \
-  sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
-  sed "s/#UNCOMMENT-AS-NEEDED//" >api_webhooks_upstream.conf
-cat /opt/msys/ecelerity/etc/sample-configs/nginx/api_users_upstream.conf | \
-  sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
-  sed "s/#UNCOMMENT-AS-NEEDED//" >api_users_upstream.conf
-cat /opt/msys/ecelerity/etc/sample-configs/nginx/api_adaptive_delivery_upstream.conf | \
-  sed "s/your.node/yournode/" | sed -f /var/tmp/sedfqdns | grep -v "#UNCOMMENT-AS-NEEDED.*yournode" | \
-  sed "s/#UNCOMMENT-AS-NEEDED//" >api_adaptive_delivery_upstream.conf
-cp -f /dev/null api_webhooks.conf
-
-service msys-nginx configtest
-service msys-nginx start
-echo "0 17 * * * /opt/msys/3rdParty/bin/node /opt/msys/app/webhooks-api/cron/purge_null_webhook_configs.js --NODE_CONFIG_DIR=/opt/msys/app/webhooks-api/cron/config --NODE_ENV=production >> /var/log/msys-nodejs/purge_null_webhook_configs_cron.log 2>&1
-" > /etc/cron.d/msys-webhook
 
 # Adding API-GEN
 

@@ -57,6 +57,15 @@ read EMAIL
 echo "What timezone is the server in? (EST,CST,MST,PST)"
 read TZ
 
+# Alternately set these manually
+FNAME="Development Server"
+MYFQDN="dev4.trymsys.net"
+USERNAME="Tom Mairs"
+EMAIL="tom.mairs@sparkpost.com"
+TZ=MST
+
+
+
    if [ $TZ = "EST" ]; then
       MYTZ="America/New_York"
    fi
@@ -79,7 +88,7 @@ echo "PLEASE WAIT....."
 
  # Use $HOSTNAME instead
  # MYHOST=`hostname -f`
- if [ $MYFQDN=""]; then
+ if [ $MYFQDN="" ]; then
   MYFQDN=`hostname -f`
  fi 
   PUBLICIP=`curl -s checkip.dyndns.org|sed -e 's/.*Current IP Address: //' -e 's/<.*$//' `

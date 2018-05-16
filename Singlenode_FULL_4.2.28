@@ -3,6 +3,26 @@
 # This is a full single node installer for Momo 4.2.28 Including complete API, WebUI and WebHooks
 # Note that you must first install 4.2.14, then upgrade to 4.2.28
 # Full instructions to build from scratch are included here
+# To make this work, place this script along with downloaded bunldes for V4.2.12 and v4.2.28 in /var/tmp before executing this script
+# https://support.messagesystems.com/package.php/momentum-bundle-4.2.1.55028.rhel6.x86_64.tar.gz
+# https://support.messagesystems.com/package.php/momentum-bundle-4.2.28.58446.rhel6.x86_64.tar.gz
+
+# Optionally preset values here
+FNAME="Development Server"
+MYFQDN="dev4.trymsys.net"
+USERNAME="Tom Mairs"
+EMAIL="tom.mairs@sparkpost.com"
+TZ=MST
+
+
+
+#####################################################
+# DO NOT CHANGE ANYTHING BELOW THIS LINE
+#####################################################
+
+cd /var/tmp
+# lynx https://support.messagesystems.com/docs
+# Download .12 and .28 bundles here
 
 clear
 echo Installing Momo 4.2.28.FULL - PoC Singlenode FULL MTA Installer version
@@ -18,7 +38,7 @@ read R
 
 echo Launch a CentOS 6.5 instance 
 echo \(CentOS 6.5 (x86_64) - Release Media\) 
-echo Select instance type m3.large, \(recommended\) click NEXT
+echo Select instance type m3.xlarge, \(recommended\) click NEXT
 echo Select "Protect against accidental termination", click NEXT
 echo Update the volume size to 200Mb
 echo Click NEXT and add a tag so you can find your instance later
@@ -43,29 +63,26 @@ echo
 
 echo "If you have already done all of the above, press ENTER/RETURN to continue"
 read R
-
+if [ $FNAME = "" ] then 
 echo "Enter the friendly name of this server (IE: \"my dev server\")"
 read FNAME
-
+fi
+if [ $MYFQDN = "" ] then
 echo "Enter the FQDN  (IE: \"myserver.home.net\") or press ENTER/RETURN for default"
 read MYFQDN
-
+fi
+if [ $USERNAME = "" ] then
 echo "Enter the name of the system operator (IE: \"Bob Jones\")"
 read USERNAME
-
+fi
+if [ $EMAIL = "" ] then
 echo "Enter the email address of the above system operator (IE: \"bob@here.com\")"
 read EMAIL
-
+fi
+if [ $TZ = "" ] then
 echo "What timezone is the server in? (EST,CST,MST,PST)"
 read TZ
-
-# Alternately set these manually
-FNAME="Development Server"
-MYFQDN="dev4.trymsys.net"
-USERNAME="Tom Mairs"
-EMAIL="tom.mairs@sparkpost.com"
-TZ=MST
-
+fi
 
    if [ $TZ = "EDT" ]; then
       MYTZ="America/New_York"
@@ -99,8 +116,6 @@ TZ=MST
 
 echo "PLEASE WAIT....."
 
-# send MAC to licensing team for appropriate license.
-
  # Use $HOSTNAME instead
  # MYHOST=`hostname -f`
  if [ $MYFQDN="" ]; then
@@ -111,6 +126,10 @@ echo "PLEASE WAIT....."
   
 echo
 echo Using these settings:
+echo Friendly Name = $FNAME
+echo FQDN = $MYFQDN
+echo USERNAME = $USERNAME
+echo Contact EMAIL = $EMAIL
 echo HOSTNAME = $HOSTNAME
 echo Public IP = $PUBLICIP
 echo Private IP = $PRIVATEIP
@@ -118,23 +137,16 @@ echo Time Zone = $MYTZ
 echo
 
 export DEFAULT=/opt/msys/ecelerity/etc/conf/default/
-
-
-###########################################################
-# Now paste most of the rest... (stop at #EOP# Marker)
-###########################################################
+echo 'export DEFAULT=/opt/msys/ecelerity/etc/conf/default/' >> /etc/profile
  
 echo "Applying environment changes..."
 echo "..............................."
-
 
 OUTPUT="$(df)"
 DRIVE=`echo ${OUTPUT} |  awk '{print $8;}'`
 MOUNT=`echo ${DRIVE} |  cut -f 3 -d "/"`
 echo $DRIVE
 echo $MOUNT
-
-
 
 echo "
 *filter
@@ -197,7 +209,7 @@ service qpidd stop
 echo 
 echo "Resizing the drive..." 
 echo "..............................."
-resize2fs /dev/xvde
+resize2fs $DRIVE
 
 echo
 echo "Updating the swap file..." 
@@ -209,6 +221,15 @@ chown root:root /swapfile
 chmod 0600 /swapfile
 echo "/swapfile               swap                    swap    defaults        0 0" >> /etc/fstab
 mount -a
+
+
+/sbin/blockdev --setra 2048 $DRIVE
+echo deadline > /sys/block/$MOUNT/queue/scheduler
+echo "/sbin/blockdev --setra 2048 $DRIVE" >>/etc/rc.local
+echo "echo deadline > /sys/block/$MOUNT/queue/scheduler" >>/etc/rc.local
+echo "export LANG=en_US.UTF-8" >> /etc/profile
+
+
 
 echo
 echo "Updating existing packages..."
@@ -226,46 +247,59 @@ echo "..............................."
 yum -y install perl mcelog sysstat ntp gdb lsof.x86_64 wget yum-utils bind-utils telnet mlocate lynx unzip sudo
 yum -y install make gcc curl cpan mysql*
 
-
-echo "DOWNLOAD the 4.2.28.1 version of Momentum"
+cd /var/tmp
+MOMOVER=`find -name 'momentum-bundle*.tar.gz'`
+if [ $MOMOVER = "" ] then
+echo "Install bundles not found. Download them first and then continue"
+echo "DOWNLOAD the 4.2.28 and .12 versions of Momentum"
 echo " or SCP the bundle to /var/tmp" 
 echo "Before continuing"
+echo "Press ENTER/RETURN to continue to LYNX or ^C to exit now."
 echo
 
-
-echo "Press ENTER/RETURN to continue to LYNX or ^C to exit now."
 read R
 
 lynx https://support.messagesystems.com/docs
+echo "Press ENTER/RETURN to continue to LYNX or ^C to exit now."
+read R
+
+fi
 
 
 cd /var/tmp
-MOMOVER=`find -name 'momentum-bundle*.tar.gz'`
-   if [ $MOMOVER = "" ]; then
-      MOMOVER=`find -name 'momentum-mta-bundle*.tar.gz'`
-   fi
-   if [ $MOMOVER = "" ]; then
-      echo "cannot continue - no install bundle found"
-      exit
-   fi
-MOMOREL='momentum-4.'`echo $MOMOVER | cut -d'.' -f 3-5`
-   if [ $MOMOREL = "" ]; then
-      MOMOREL='momentum-mta-4.'`echo $MOMOVER | cut -d'.' -f 3-5`
-   fi
-   if [ $MOMOREL = "" ]; then
-      echo "cannot continue - no install bundle found"
-      exit
-   fi
+
+MOMOVER1="momentum-bundle-4.2.1.55028.rhel6.x86_64.tar.gz"
+MOMOVER2="momentum-bundle-4.2.28.58446.rhel6.x86_64.tar.gz"
+MOMOREL1="momentum-4.2.1.55028"
+MOMOREL2="momentum-4.2.28.58446"
+
 
 
 echo 
-echo Unpacking version $MOMOREL . Please wait....
+echo Unpacking version $MOMOREL1 . Please wait....
 echo ...
-tar -zxf $MOMOVER
-cd $MOMOREL/
+tar -zxf $MOMOVER1
+cd $MOMOREL1/
 
-echo "Installing from $MOMOREL.  press ^C to exit or ENTER to continue"
+echo "Installing from $MOMOREL1.  press ^C to exit or ENTER to continue"
 read R
+
+
+###########################################################################
+# Put v.12 instructions here
+###########################################################################
+
+cd /var/tmp
+
+echo 
+echo Unpacking version $MOMOREL2 . Please wait....
+echo ...
+tar -zxf $MOMOVER2
+cd $MOMOREL2/
+
+echo "Upgrading with $MOMOREL2.  press ^C to exit or ENTER to continue"
+read R
+
 
 ./setrepodir
 pwd >/var/tmp/inst.dir

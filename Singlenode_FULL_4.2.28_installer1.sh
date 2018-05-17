@@ -1,9 +1,9 @@
 #!/bin/bash
 
 # This is a full single node installer for Momo 4.2.28 Including complete API, WebUI and WebHooks
-# Note that you must first install 4.2.14, then upgrade to 4.2.28
+# Note that you must first install 4.2.1.14, then upgrade to 4.2.28
 # Full instructions to build from scratch are included here
-# To make this work, place this script along with downloaded bunldes for V4.2.12 and v4.2.28 in /var/tmp before executing this script
+# To make this work, place this script along with downloaded bunldes for V4.2.1.14 and v4.2.28 in /var/tmp before executing this script
 # https://support.messagesystems.com/package.php/momentum-bundle-4.2.1.56364.rhel6.x86_64.tar.gz
 # https://support.messagesystems.com/package.php/momentum-bundle-4.2.28.58446.rhel6.x86_64.tar.gz
 

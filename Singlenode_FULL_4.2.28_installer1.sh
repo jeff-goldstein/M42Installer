@@ -672,14 +672,6 @@ service ecconfigd restart
 
 
 
-
-
-
-MOMOVER1="momentum-bundle-4.2.1.56364.rhel6.x86_64.tar.gz"
-MOMOVER2="momentum-bundle-4.2.28.58446.rhel6.x86_64.tar.gz"
-MOMOREL1="momentum-4.2.1.56364"
-MOMOREL2="momentum-4.2.28.58446"
-
 ###########################################################################
 # Put v.28 Upgrade instructions here
 ###########################################################################
@@ -726,5 +718,5 @@ yum shell --disablerepo=* --config momentum.repo --enablerepo momentum
  run 
  quit
  "
- exit
+ 
  

@@ -245,8 +245,8 @@ yum clean headers
 yum clean packages
 yum clean metadata
 
-yum groupinstall base -y
-yum update -y
+yum -y groupinstall base
+yum -y update
 
 echo
 echo "Adding required packages..."

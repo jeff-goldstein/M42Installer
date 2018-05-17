@@ -1,3 +1,5 @@
+#!/bin/bash
+
 ###########################################################
 # This is part 2 of the 4.2.28 FULL installer.
 # End=sure these environment variables are the same as 
@@ -18,8 +20,9 @@ export MOMOREL2="momentum-4.2.28.58446"
 
  sed -i 's/cassandra_client {/cassandra_native_client {/' /opt/msys/ecelerity/etc/conf/default/msg_gen.conf  
  sed -i 's/uri = (/contact_points = (/' /opt/msys/ecelerity/etc/conf/default/msg_gen.conf  
- sed -i 's/"name=(.*)9160"/<FQDN>/' /opt/msys/ecelerity/etc/conf/default/msg_gen.conf  
- 
+ sed -i 's/"name=(.*)9160"/<FQDN>/' /opt/msys/ecelerity/etc/conf/default/msg_gen.conf 
+
+
  /opt/msys/ecelerity/bin/cassandra_momo_setup.sh --multinode /opt/msys/ecelerity/etc
 
 service eccmgr start
@@ -114,9 +117,6 @@ passwd seteam
 #
 #######################################################################################
 
-
-echo "Now customizing configs...  press ^C to exit or ENTER to continue"
-read R
 
 mkdir $DEFAULT/lua
 mkdir $DEFAULT/conf.d

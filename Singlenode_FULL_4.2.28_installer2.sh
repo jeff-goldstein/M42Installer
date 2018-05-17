@@ -4,6 +4,17 @@
 # in script 1
 ###########################################################
 
+export FNAME='Development Server'
+export MYFQDN='dev4.trymsys.net'
+export USERNAME='Tom Mairs'
+export EMAIL='tom.mairs@sparkpost.com'
+export TZ='MST'
+export DEFAULT=/opt/msys/ecelerity/etc/conf/default/
+export MOMOVER1="momentum-bundle-4.2.1.56364.rhel6.x86_64.tar.gz"
+export MOMOVER2="momentum-bundle-4.2.28.58446.rhel6.x86_64.tar.gz"
+export MOMOREL1="momentum-4.2.1.56364"
+export MOMOREL2="momentum-4.2.28.58446"
+
 
  sed -i 's/cassandra_client {/cassandra_native_client {/' /opt/msys/ecelerity/etc/conf/default/msg_gen.conf  
  sed -i 's/uri = (/contact_points = (/' /opt/msys/ecelerity/etc/conf/default/msg_gen.conf  

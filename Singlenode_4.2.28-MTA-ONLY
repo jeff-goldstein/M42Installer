@@ -669,7 +669,7 @@ msys.registerModule(\"policy\", mod);
 #######################################
 # Commit and restart
 #######################################
-chown ecuser.ecuser $DEFAULT/* -R
+
 service ecelerity restart
 
 echo 
